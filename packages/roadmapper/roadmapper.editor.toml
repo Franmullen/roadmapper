@@ -1,0 +1,20 @@
+[editor]
+id = "board"
+type = "document"
+entry-point = "index.html"
+display-name = "Roadmapper_Editor_Name"
+description = "Roadmapper_Editor_Description"
+
+# A .roadmap file holds the board's settings: which folder to show, and the lane order.
+# The milestones and plans are the folders and Markdown files inside that folder.
+[[file-types]]
+extension = ".roadmap"
+display-name = "Roadmapper_FileType_Roadmap"
+icon = "bs-signpost-split"
+icon-color = "#3B82F6"
+
+[[templates]]
+id = "default"
+display-name = "Roadmapper_Template_Default"
+template-file = "templates/default.roadmap"
+default = true

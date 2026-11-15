@@ -1,0 +1,14 @@
+# Celbridge machine-local files
+.claude/
+.mcp.json
+*.cel
+
+# Generated mock roadmaps (rebuild with mocks/make_mocks.py)
+mocks/generated/
+
+# OS and tooling
+.DS_Store
+Thumbs.db
+desktop.ini
+__pycache__/
+node_modules/

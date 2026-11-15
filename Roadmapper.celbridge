@@ -1,0 +1,14 @@
+[celbridge]
+celbridge-version = "1.7.0"
+
+[celbridge.explorer]
+exclude = [".gitignore", ".DS_Store", "Thumbs.db", "desktop.ini", "__pycache__"]
+
+[celbridge.search]
+exclude = ["node_modules", "bin", "obj", "dist", ".venv", "__pycache__", "mocks/generated"]
+
+[[shortcut]]
+resource = "python.console"
+icon = "bs-terminal"
+area = "bottom"
+open-on-load = true

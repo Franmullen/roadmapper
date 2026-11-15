@@ -1,0 +1,12 @@
+[session]
+type = "python"
+
+[[session.shortcut]]
+label = "Launch Claude Code with Celbridge tools"
+icon = "bs-robot"
+text = "cel.agent.claude()"
+
+[[session.shortcut]]
+label = "Regenerate the mock roadmaps"
+icon = "bs-shuffle"
+text = "%run mocks/make_mocks.py"

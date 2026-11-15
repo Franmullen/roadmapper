@@ -1,0 +1,240 @@
+/* Roadmapper. Built from the host's design tokens, so it follows the light and dark themes. */
+
+:root {
+    --mb-column-width: 260px;
+    --mb-gap: 12px;
+    --mb-done: #16a34a;
+}
+
+[data-theme="dark"] {
+    --mb-done: #4ade80;
+}
+
+html, body {
+    height: 100%;
+    margin: 0;
+}
+
+body {
+    display: flex;
+    flex-direction: column;
+    background: var(--cel-content-bg);
+    color: var(--cel-text-primary);
+    font-family: var(--cel-font-ui);
+    font-size: var(--cel-font-size-base);
+    overflow: hidden;
+}
+
+/* --- Toolbar --- */
+
+#toolbar {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 8px var(--mb-gap);
+    border-bottom: 1px solid var(--cel-divider);
+    background: var(--cel-chrome-bg);
+    flex: none;
+}
+
+.root-field {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    color: var(--cel-text-secondary);
+}
+
+#root-input {
+    width: 180px;
+}
+
+#summary {
+    color: var(--cel-text-secondary);
+    font-size: var(--cel-font-size-small);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.spacer {
+    flex: 1;
+}
+
+/* --- Message strip --- */
+
+#message {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 8px var(--mb-gap);
+    border-bottom: 1px solid var(--cel-divider);
+    color: var(--cel-warning-text);
+    flex: none;
+}
+
+#message[hidden] {
+    display: none;
+}
+
+#message p {
+    margin: 0;
+}
+
+/* --- Board --- */
+
+#board {
+    flex: 1;
+    display: flex;
+    align-items: flex-start;
+    gap: var(--mb-gap);
+    padding: var(--mb-gap);
+    overflow: auto;
+}
+
+.column {
+    flex: 0 0 var(--mb-column-width);
+    display: flex;
+    flex-direction: column;
+    max-height: 100%;
+    background: var(--cel-chrome-bg);
+    border: 1px solid var(--cel-panel-edge);
+    border-radius: var(--cel-radius-card);
+    box-sizing: border-box;
+}
+
+.column.unsorted {
+    border-style: dashed;
+}
+
+.column.drop-target {
+    outline: 2px solid var(--cel-accent);
+    outline-offset: -1px;
+}
+
+.column-header {
+    display: grid;
+    grid-template-columns: 1fr auto;
+    align-items: baseline;
+    gap: 2px 8px;
+    padding: 10px 12px 8px;
+}
+
+.column-header h2 {
+    margin: 0;
+    font-size: var(--cel-font-size-base);
+    font-weight: var(--cel-font-weight-strong);
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.count {
+    color: var(--cel-text-secondary);
+    font-size: var(--cel-font-size-small);
+}
+
+.folder-link {
+    grid-column: 1 / -1;
+    justify-self: start;
+    padding: 0;
+    border: none;
+    background: none;
+    min-height: 0;
+    color: var(--cel-text-secondary);
+    font-family: var(--cel-font-mono);
+    font-size: var(--cel-font-size-small);
+    cursor: pointer;
+}
+
+.folder-link:hover {
+    color: var(--cel-accent);
+    text-decoration: underline;
+}
+
+.column > .progress {
+    margin: 0 12px 8px;
+}
+
+/* --- Cards --- */
+
+.cards {
+    list-style: none;
+    margin: 0;
+    padding: 0 8px 8px;
+    overflow-y: auto;
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+}
+
+.card {
+    padding: 8px 10px;
+    background: var(--cel-content-bg);
+    border: 1px solid var(--cel-divider);
+    border-radius: var(--cel-radius-control);
+    cursor: pointer;
+}
+
+.card:hover,
+.card:focus-visible {
+    border-color: var(--cel-accent);
+    outline: none;
+}
+
+.card.dragging {
+    opacity: 0.4;
+}
+
+body:not(.read-only) .card {
+    cursor: grab;
+}
+
+.card-title {
+    font-weight: var(--cel-font-weight-strong);
+    overflow-wrap: anywhere;
+}
+
+.card-meta {
+    display: flex;
+    justify-content: space-between;
+    gap: 8px;
+    margin-top: 4px;
+    font-size: var(--cel-font-size-small);
+    color: var(--cel-text-secondary);
+}
+
+.card-file {
+    font-family: var(--cel-font-mono);
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.card-tasks.complete {
+    color: var(--mb-done);
+}
+
+.card > .progress {
+    margin-top: 6px;
+}
+
+.empty {
+    padding: 12px 4px;
+    color: var(--cel-text-secondary);
+    font-size: var(--cel-font-size-small);
+    text-align: center;
+}
+
+/* --- Progress bar --- */
+
+.progress {
+    height: 4px;
+    border-radius: 2px;
+    background: var(--cel-divider);
+    overflow: hidden;
+}
+
+.progress-fill {
+    height: 100%;
+    background: var(--mb-done);
+}
