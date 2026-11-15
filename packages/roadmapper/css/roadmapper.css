@@ -475,6 +475,17 @@ body.read-only .write-only {
     min-width: 220px;
 }
 
+.review-label {
+    font-size: var(--cel-font-size-small);
+    color: var(--cel-text-secondary);
+}
+
+.review-checks {
+    margin: 2px 0 0;
+    padding-left: 18px;
+    font-size: var(--cel-font-size-small);
+}
+
 /* --- Progress and status bars --- */
 
 .progress {

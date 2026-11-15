@@ -54,8 +54,8 @@ let renderDeferred = false;
 let restoreScrollTop = 0;
 let uiRestored = false;
 
-// Earlier names for views, still accepted in .roadmap files and saved editor state.
-// Views that were renamed or removed open as the closest one left.
+// Earlier names for views, still accepted in .roadmap files and saved editor state: views that were
+// renamed or removed open as the closest one left.
 const VIEW_ALIASES = { pipeline: 'road', board: 'road' };
 const viewId = id => VIEW_ALIASES[id] ?? id;
 const isView = id => VIEW_LIST.some(view => view.id === viewId(id));
@@ -127,6 +127,9 @@ const commands = {
         render();
     },
     createPlan: (folder, lane, title) => act(() => actions.createPlan(project, folder, lane, title)),
+    addToQueue: items => act(() => actions.addToQueue(project, items)),
+    removeFromQueue: item => act(() => actions.removeFromQueue(project, item)),
+    answerInQueue: (item, answer) => act(() => actions.answerInQueue(project, item, answer)),
     createMilestone: title => act(() => actions.createMilestone(project, config, title, rootMissing), { rewatch: rootMissing }),
     updatePlan: (resource, updates) => act(() => actions.updatePlan(resource, updates)),
     approvePlan: resource => act(() => actions.reviewPlan(resource)),
@@ -273,11 +276,12 @@ function render() {
         return;
     }
 
-    // The milestone view always shows a milestone whole; the others focus unless asked to show all.
-    const shown = view === milestoneView || ui.showAll ? project : focusProject(project);
+    // The milestone and Reviews views always show everything; the others focus unless asked to show all.
+    const shown = view === milestoneView || view.unfocused || ui.showAll ? project : focusProject(project);
     const ctx = viewContext();
     const content = el('div', 'rm-content');
     view.render(content, shown, ctx);
+    const kept = keptInput();
 
     if (view.zoomable) {
         boardEl.className = `zoomable view-${view.id}`;
@@ -294,13 +298,38 @@ function render() {
         view.mounted?.(content, shown, ctx);
         boardEl.scrollTop = scrollTop;
     }
+    restoreInput(kept);
+}
+
+// A field marked data-keep-focus (like the queue's) survives a re-render, so a rescan never loses what
+// is being typed into it.
+function keptInput() {
+    const input = document.activeElement;
+    const key = input?.dataset?.keepFocus;
+    return key ? { key, value: input.value, start: input.selectionStart, end: input.selectionEnd } : null;
+}
+
+function restoreInput(kept) {
+    if (!kept) return;
+    const input = boardEl.querySelector(`[data-keep-focus="${kept.key}"]`);
+    if (!input) return;
+    input.value = kept.value;
+    input.focus();
+    input.setSelectionRange(kept.start, kept.end);
 }
 
 function renderToolbar(view) {
     for (const element of viewSwitch.children) {
         element.setAttribute('aria-pressed', String(element.dataset.view === ui.view && view !== milestoneView));
     }
-    showAllButton.hidden = !project || view === milestoneView;
+    for (const choice of viewSwitch.children) {
+        const badge = choice.querySelector('.toolbar-badge');
+        const count = VIEW_LIST.find(v => v.id === choice.dataset.view)?.badge?.(project) ?? 0;
+        if (!badge) continue;
+        badge.textContent = String(count);
+        badge.hidden = !count;
+    }
+    showAllButton.hidden = !project || view === milestoneView || view.unfocused;
     showAllButton.setAttribute('aria-pressed', String(ui.showAll));
     if (project && !ui.showAll) {
         const { hidden } = focusProject(project);
@@ -329,6 +358,7 @@ function renderToolbar(view) {
         `${counts.done} done`,
     ];
     if (counts.doing) parts.push(`${counts.doing} doing`);
+    if (counts.review) parts.push(`${counts.review} in review`);
     if (counts.blocked) parts.push(`${counts.blocked} blocked`);
     summaryEl.textContent = parts.join(' · ');
 }
@@ -357,12 +387,23 @@ for (const view of [...VIEW_LIST, milestoneView]) {
 }
 
 for (const view of VIEW_LIST) {
-    const choice = button('toolbar-button view-choice', [icon(view.icon), el('span', '', view.label)],
-        () => commands.showView(view.id), `${view.label} view`);
+    const content = [icon(view.icon), el('span', '', view.label)];
+    if (view.badge) {
+        const badge = el('span', 'toolbar-badge');
+        badge.hidden = true;
+        content.push(badge);
+    }
+    const choice = button('toolbar-button view-choice', content, () => commands.showView(view.id), `${view.label} view`);
     choice.dataset.view = view.id;
     viewSwitch.appendChild(choice);
 }
 
+// The root field suggests the project's folders as you type.
+const rootFolders = document.getElementById('root-folders');
+rootInput.addEventListener('focus', async () => {
+    const folders = await actions.listFolders();
+    rootFolders.replaceChildren(...folders.map(folder => Object.assign(document.createElement('option'), { value: folder })));
+});
 rootInput.addEventListener('change', () => changeRoot(rootInput.value));
 rootInput.addEventListener('keydown', event => {
     if (event.key === 'Enter') rootInput.blur();

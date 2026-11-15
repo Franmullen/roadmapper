@@ -11,9 +11,10 @@
 </head>
 <body>
     <header id="toolbar">
-        <label class="root-field" title="The folder whose subfolders are the milestones">
+        <label class="root-field" title="The folder whose subfolders are the milestones. Pick one of the project's folders, or type a path.">
             <i class="bi bi-folder2"></i>
-            <input type="text" id="root-input" spellcheck="false" autocomplete="off" placeholder="plans">
+            <input type="text" id="root-input" list="root-folders" spellcheck="false" autocomplete="off" placeholder="plans">
+            <datalist id="root-folders"></datalist>
         </label>
         <div id="view-switch" class="segmented" role="group" aria-label="View"></div>
         <span id="summary"></span>

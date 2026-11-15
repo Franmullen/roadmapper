@@ -21,7 +21,8 @@
 
 import road from './road.js';
 import map from './map.js';
+import reviews from './reviews.js';
 
-export const VIEW_LIST = [road, map];
+export const VIEW_LIST = [road, map, reviews];
 
 export { default as milestoneView } from './milestone.js';

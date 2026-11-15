@@ -57,6 +57,16 @@ What this delivers, in a sentence or two.
 - **As you go**, tick each checkbox (`- [x]`) when it is finished. Work you discover becomes a new plan file in the milestone where it belongs.
 - **When it is all done**, set `status: review` if a person should check it, otherwise `done`. Leave what the person should check as unticked `- [ ] Check: …` tasks; the board shows them to the reviewer. If you cannot continue, set `status: blocked` and add a sentence saying why.
 
+### The queue
+
+`plans/queue.md` holds ideas and requests a person has lined up, as `- [ ]` items. When asked to process the queue (or the inbox, or the todo list), take each unticked item in order:
+
+- Turn it into work on the roadmap: a new plan in the milestone where it belongs, new tasks on an existing plan, or a new milestone if nothing fits. Write tasks a person can check, and set `lane:` and `depends:` where they are clear.
+- Then tick the item and add where it went, e.g. `- [x] Dark mode → plans/03-polish/dark-mode.md`.
+- If an item is too unclear to plan, leave it unticked and add an indented line under it with your question.
+
+Processing the queue only plans the work. Do the work too only when asked, working from the roadmap as above.
+
 ### Presenting or building a roadmap
 
 - **Where do we stand?** Answer from the roadmap: each milestone with its progress and due date, what is in progress, what is ready next, and anything blocked, overdue or broken.

@@ -8,7 +8,7 @@
 // saves working out the state. Agents launched from Celbridge (cel.agent.claude()) have the Celbridge
 // file tools but no shell, so this is all plain text rather than a command to run.
 
-import { STATUSES, STATUS_LABELS, isComplete } from './model.js';
+import { QUEUE_FILE, STATUSES, STATUS_LABELS, isComplete } from './model.js';
 
 export const AGENT_SECTION_START = '<!-- roadmapper:start -->';
 export const AGENT_SECTION_END = '<!-- roadmapper:end -->';
@@ -97,6 +97,12 @@ export function roadmapBrief(project, { today, roadmapResource }) {
     });
     section('Blocked', work.blocked);
 
+    const queue = project.queue;
+    if (queue?.open.length) {
+        lines.push('', '## Queue', '', `Waiting in \`${queue.resource}\` to be turned into plans:`, '');
+        lines.push(...queue.open.flatMap(item => [`- [ ] ${item.text}`, ...item.notes.map(note => `  - ${note}`)]));
+    }
+
     lines.push('', '## Problems', '');
     lines.push(...(work.problems.length
         ? work.problems.map(({ plan, dep }) => `- \`${plan.resource}\` depends on \`${dep.ref}\`, but ${PROBLEM_TEXT[dep.problem]}.`)
@@ -153,6 +159,16 @@ export function agentInstructions(config, roadmapResource) {
         '- **Before you start**, set `status: doing` and `owner:` to your name, so people and other agents can see it is taken.',
         '- **As you go**, tick each checkbox (`- [x]`) when it is finished. Work you discover becomes a new plan file in the milestone where it belongs.',
         '- **When it is all done**, set `status: review` if a person should check it, otherwise `done`. Leave what the person should check as unticked `- [ ] Check: …` tasks; the board shows them to the reviewer. If you cannot continue, set `status: blocked` and add a sentence saying why.',
+        '',
+        '### The queue',
+        '',
+        `\`${root}/${QUEUE_FILE}\` holds ideas and requests a person has lined up, as \`- [ ]\` items. When asked to process the queue (or the inbox, or the todo list), take each unticked item in order:`,
+        '',
+        '- Turn it into work on the roadmap: a new plan in the milestone where it belongs, new tasks on an existing plan, or a new milestone if nothing fits. Write tasks a person can check, and set `lane:` and `depends:` where they are clear.',
+        '- Then tick the item and add where it went, e.g. `- [x] Dark mode → plans/03-polish/dark-mode.md`.',
+        '- If an item is too unclear to plan, leave it unticked and add an indented `- Question: …` line under it. The person answers on the board with an indented `- Answer: …` line, so use any answer you find.',
+        '',
+        'Processing the queue only plans the work. Do the work too only when asked, working from the roadmap as above.',
         '',
         '### Presenting or building a roadmap',
         '',

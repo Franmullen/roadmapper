@@ -5,10 +5,12 @@
 // The project every view draws from:
 //   {
 //     root,                                   // the board's folder
+//     queue: { resource, exists, open: ['text'], processed: ['text'] },   // <root>/queue.md, for an agent
 //     lanes: ['core', 'ui', ...],             // display order
 //     milestones: [{ folder, name, title, due, description, metaResource, unsorted, truncated,
 //                    plans: [...], counts: { todo, doing, review, done, blocked } }],
 //     plans: [{ resource, name, path, milestone, title, status, statusExplicit, lane, owner, done, total,
+//               openTasks: ['text'], followUps: ['text'],  // unticked tasks, and those under ## Follow-ups
 //               dependsOn: ['ref'],                       // the raw `depends:` list
 //               depends: [{ ref, resource, title, done, problem }],  // resolved; problem: missing, ambiguous, later
 //               dependents: [resource],                   // plans that depend on this one
@@ -27,6 +29,9 @@ export const STATUS_LABELS = {
 
 // Files that describe a milestone (or the whole board, at the root) rather than being a plan.
 const MILESTONE_FILES = ['readme.md', '_milestone.md'];
+
+// The queue: ideas and requests a person lines up for an agent to turn into plans. It sits in the root.
+export const QUEUE_FILE = 'queue.md';
 
 // --- Settings (.roadmap file) ---
 
@@ -263,6 +268,10 @@ function isMilestoneFile(node) {
     return MILESTONE_FILES.includes(node.name.toLowerCase());
 }
 
+function isQueueFile(node) {
+    return node.name.toLowerCase() === QUEUE_FILE;
+}
+
 const byName = (a, b) => a.name.localeCompare(b.name, undefined, { numeric: true, sensitivity: 'base' });
 
 // The shape of the board from a file_get_tree result rooted at the board's folder, before any file is read.
@@ -273,7 +282,7 @@ export function scanTree(tree, root) {
     const children = tree?.children ?? [];
     const milestones = [];
 
-    const loose = children.filter(node => isMarkdown(node) && !isMilestoneFile(node)).sort(byName);
+    const loose = children.filter(node => isMarkdown(node) && !isMilestoneFile(node) && !isQueueFile(node)).sort(byName);
     if (loose.length > 0) {
         milestones.push({
             name: 'Unsorted',
@@ -315,7 +324,25 @@ function collectMarkdown(folder, prefix, topLevel) {
 
 // Every file buildProject needs the text of: the milestone READMEs and the plans.
 export function projectResources(tree, root) {
-    return scanTree(tree, root).flatMap(m => [...(m.metaResource ? [m.metaResource] : []), ...m.files.map(f => f.resource)]);
+    const queue = (tree?.children ?? []).find(node => !isFolder(node) && isQueueFile(node));
+    return [
+        ...(queue ? [`${root}/${queue.name}`] : []),
+        ...scanTree(tree, root).flatMap(m => [...(m.metaResource ? [m.metaResource] : []), ...m.files.map(f => f.resource)]),
+    ];
+}
+
+// Folder paths in a file_get_tree result for the project, for suggesting a root. Leaves out hidden
+// folders and ones that never hold plans.
+const NOT_ROOTS = new Set(['packages', 'node_modules', 'dist', 'build', 'bin', 'obj', '__pycache__']);
+
+export function folderPaths(tree, prefix = '') {
+    const paths = [];
+    for (const node of [...(tree?.children ?? [])].filter(isFolder).sort(byName)) {
+        if (node.name.startsWith('.') || NOT_ROOTS.has(node.name.toLowerCase())) continue;
+        const path = prefix ? `${prefix}/${node.name}` : node.name;
+        paths.push(path, ...folderPaths(node, path));
+    }
+    return paths;
 }
 
 // Display name for a milestone folder: "02-first-release" reads as "First release".
@@ -392,7 +419,91 @@ export function buildProject(tree, root, contents, config) {
     });
     const plans = milestones.flatMap(milestone => milestone.plans);
     linkDependencies(milestones, root);
-    return { root, milestones, plans, lanes: laneOrder(config.lanes, plans) };
+    const queueNode = (tree?.children ?? []).find(node => !isFolder(node) && isQueueFile(node));
+    const queueResource = `${root}/${queueNode?.name ?? QUEUE_FILE}`;
+    const queue = { resource: queueResource, exists: Boolean(queueNode), ...parseQueue(contents.get(queueResource) ?? '') };
+    return { root, milestones, plans, lanes: laneOrder(config.lanes, plans), queue };
+}
+
+// --- The queue ---
+
+const QUEUE_ITEM = /^\s*[-*+]\s+\[([ xX])\]\s*(.*)$/;
+
+const LIST_LINE = /^\s*[-*+]\s/;
+const NOTE_LINE = /^\s+\S/;   // indented under an item: an agent's question, or a person's answer
+
+// The queue's items, as { text, notes }: unticked ones are waiting for an agent, ticked ones have been
+// turned into plans. Notes are the indented lines under an item, without their bullets.
+export function parseQueue(text) {
+    const open = [];
+    const processed = [];
+    let current = null;
+    for (const line of withoutBom(text ?? '').split(/\r?\n/)) {
+        const item = line.match(QUEUE_ITEM);
+        if (item && !/^\s/.test(line)) {
+            current = item[2].trim() ? { text: item[2].trim(), notes: [] } : null;
+            if (current) (item[1] === ' ' ? open : processed).push(current);
+        } else if (current && NOTE_LINE.test(line)) {
+            current.notes.push(line.trim().replace(/^[-*+]\s+/, ''));
+        } else if (line.trim()) {
+            current = null;
+        }
+    }
+    return { open, processed };
+}
+
+// The lines of the first unticked item with this text, with its notes: [start, end).
+function queueItemLines(lines, item) {
+    const start = lines.findIndex(line => {
+        const match = line.replace(/\r?\n$/, '').match(QUEUE_ITEM);
+        return match && !/^\s/.test(line) && match[1] === ' ' && match[2].trim() === item;
+    });
+    if (start < 0) return null;
+    let end = start + 1;
+    while (end < lines.length && NOTE_LINE.test(lines[end])) end++;
+    return [start, end];
+}
+
+export function queueTemplate() {
+    return [
+        '# Queue',
+        '',
+        'Ideas and requests for an agent. Ask it to "process the queue": it turns each unticked item into plans,',
+        'then ticks the item and notes where it went.',
+        '',
+    ].join('\n');
+}
+
+// Adds items to the end of the queue, starting one if there is none.
+export function addQueueItems(text, items) {
+    const lines = items.map(item => item.trim().replace(/\s+/g, ' ')).filter(Boolean).map(item => `- [ ] ${item}`);
+    const source = text && text.trim() ? text : queueTemplate();
+    const eol = source.includes('\r\n') ? '\r\n' : '\n';
+    const body = source.replace(/\s*$/, '');
+    const lastLine = body.slice(body.lastIndexOf('\n') + 1);
+    // Straight after an existing list; otherwise after a blank line.
+    return body + eol + (LIST_LINE.test(lastLine) ? '' : eol) + lines.join(eol) + eol;
+}
+
+// Removes the first unticked item with this text, with its notes.
+export function removeQueueItem(text, item) {
+    const lines = text.split(/(?<=\n)/);
+    const range = queueItemLines(lines, item);
+    if (range) lines.splice(range[0], range[1] - range[0]);
+    return lines.join('');
+}
+
+// Answers an agent's question on an item: an indented "Answer:" line after its notes.
+export function answerQueueItem(text, item, answer) {
+    const reply = answer.trim().replace(/\s+/g, ' ');
+    const lines = text.split(/(?<=\n)/);
+    const range = queueItemLines(lines, item);
+    if (!range || !reply) return text;
+    const eol = text.includes('\r\n') ? '\r\n' : '\n';
+    const last = range[1] - 1;
+    if (!/\n$/.test(lines[last])) lines[last] += eol;
+    lines.splice(range[1], 0, `  - Answer: ${reply}${eol}`);
+    return lines.join('');
 }
 
 // --- Dependencies ---

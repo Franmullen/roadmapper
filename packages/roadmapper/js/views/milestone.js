@@ -4,17 +4,43 @@
 
 import { STATUSES, STATUS_LABELS } from '../model.js';
 import {
-    addPlanButton, button, dependencyChip, dependencyLinks, dragPayload, el, followUpChip, icon, milestoneHeader, ownerTag, reviewControls,
+    addPlanButton, button, dependencyChip, dependencyLinks, dragPayload, el, followUpChip, icon, inlinePrompt, milestoneHeader, ownerTag,
+    reviewControls,
     statusChip,
 } from '../ui.js';
 
-function planRow(ctx, plan) {
+const NEW_LANE = '\u0000new';
+
+// A plan's lane (swimlane on the Map): pick one of the lanes in use, none, or start a new one.
+function laneSelect(ctx, plan, lanes) {
+    const select = el('select', plan.lane ? 'lane-select' : 'lane-select no-lane');
+    select.title = 'Lane: the swimlane this plan sits in on the Map';
+    select.disabled = !ctx.writable;
+    const choices = [['', 'No lane'], ...lanes.map(lane => [lane, lane]), [NEW_LANE, 'New lane…']];
+    for (const [value, label] of choices) {
+        const option = el('option', '', label);
+        option.value = value;
+        option.selected = value === plan.lane;
+        select.appendChild(option);
+    }
+    select.addEventListener('change', () => {
+        if (select.value !== NEW_LANE) {
+            ctx.updatePlan(plan.resource, { lane: select.value });
+            return;
+        }
+        select.value = plan.lane;
+        inlinePrompt(select, 'Lane name, then Enter', name => ctx.updatePlan(plan.resource, { lane: name.trim().toLowerCase().replace(/\s+/g, '-') }));
+    });
+    return select;
+}
+
+function planRow(ctx, plan, lanes) {
     const row = el('li', 'detail-row');
 
     row.appendChild(button('detail-title', plan.title, () => ctx.open(plan.resource), `Open ${plan.resource}`));
 
     const meta = el('div', 'detail-meta');
-    if (plan.lane) meta.appendChild(el('span', 'lane-tag', plan.lane));
+    meta.appendChild(laneSelect(ctx, plan, lanes));
     if (plan.owner) meta.appendChild(ownerTag(plan));
     meta.appendChild(el('span', 'card-file', plan.path));
     if (plan.total > 0) {
@@ -96,7 +122,7 @@ export default {
             group.appendChild(heading);
 
             const list = el('ul', 'detail-list');
-            for (const plan of plans) list.appendChild(planRow(ctx, plan));
+            for (const plan of plans) list.appendChild(planRow(ctx, plan, project.lanes));
             if (plans.length === 0) list.appendChild(el('li', 'empty', 'None'));
             group.appendChild(list);
 

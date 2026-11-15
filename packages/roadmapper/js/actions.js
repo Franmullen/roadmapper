@@ -5,7 +5,7 @@
 // except loadProject, whose caller decides what an unreadable folder means.
 
 import {
-    addFollowUps, approveReview, buildProject, dropChanges, milestoneTemplate, nextMilestoneFolder, planTemplate, projectResources,
+    addFollowUps, addQueueItems, answerQueueItem, approveReview, buildProject, dropChanges, folderPaths, milestoneTemplate, removeQueueItem, nextMilestoneFolder, planTemplate, projectResources,
     setFrontMatter, uniqueFileName,
 } from './model.js';
 import { agentInstructions, briefResource, roadmapBrief, upsertSection } from './agents.js';
@@ -92,6 +92,36 @@ export function createActions(client, { notify }) {
             const text = await readFile(resource);
             await call('file.write', resource, followUps ? addFollowUps(text, followUps) : approveReview(text));
         });
+    }
+
+    // Adds ideas to the queue file, creating it if needed. The file is read fresh, so an agent's ticks are kept.
+    function addToQueue(project, items) {
+        return attempt('Could not add to the queue.', async () => {
+            const text = project.queue.exists ? await readFile(project.queue.resource) : '';
+            await call('file.write', project.queue.resource, addQueueItems(text, items));
+        });
+    }
+
+    function removeFromQueue(project, item) {
+        return attempt('Could not remove that from the queue.', async () => {
+            await call('file.write', project.queue.resource, removeQueueItem(await readFile(project.queue.resource), item));
+        });
+    }
+
+    function answerInQueue(project, item, answer) {
+        return attempt('Could not save that answer.', async () => {
+            await call('file.write', project.queue.resource, answerQueueItem(await readFile(project.queue.resource), item, answer));
+        });
+    }
+
+    // The project's folders, for choosing the root.
+    async function listFolders() {
+        try {
+            return folderPaths(await call('file.getTree', '', 3, '', ''));
+        } catch (e) {
+            console.warn('[Roadmapper] Could not list the folders:', e);
+            return [];
+        }
     }
 
     // A drop can change a plan's lane and status (front matter) and its milestone (folder). A move that
@@ -187,7 +217,7 @@ export function createActions(client, { notify }) {
     }
 
     return {
-        loadProject, openFile, revealFolder, updatePlan, reviewPlan, dropPlan, createPlan, createMilestone,
+        loadProject, openFile, revealFolder, updatePlan, reviewPlan, addToQueue, removeFromQueue, answerInQueue, listFolders, dropPlan, createPlan, createMilestone,
         createMilestoneReadme, createRoot, writeAgentGuide, writeBrief,
     };
 }

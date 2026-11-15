@@ -6,7 +6,7 @@ import {
     laneOrder, milestoneTemplate, nextMilestoneFolder, normalizeFolder, normalizeStatus, parseConfig, parseFrontMatter,
     planTemplate, serializeConfig, setFrontMatter, slugify, summarizeMarkdown, summarizeMilestone, uniqueFileName,
     buildProject, statusCounts, todayMarkerIndex, isMilestoneOverdue, parseList, projectResources, dropChanges, focusProject, planTotal,
-    approveReview, addFollowUps,
+    approveReview, addFollowUps, parseQueue, addQueueItems, removeQueueItem, answerQueueItem, folderPaths,
 } from '../js/model.js';
 import { fitState, zoomAt } from '../js/viewport.js';
 
@@ -364,4 +364,48 @@ test('sending a plan back adds follow-ups and returns it to todo', () => {
     const twice = addFollowUps(once + '\n## After\n', ['More']);
     assert.match(twice, /- \[ \] Add a test\n- \[ \] More\n\n## After/);
     assert.equal(addFollowUps('# A\r\n\r\n## Follow-ups\r\n', ['x']), '---\r\nstatus: todo\r\n---\r\n# A\r\n\r\n## Follow-ups\r\n\r\n- [ ] x\r\n');
+});
+
+test('the queue lists open and processed items, and is not a plan', () => {
+    const tree = { name: 'plans', children: [{ name: 'queue.md', type: 'file' }, { name: 'idea.md', type: 'file' }] };
+    assert.deepEqual(projectResources(tree, 'plans'), ['plans/queue.md', 'plans/idea.md']);
+    const text = '# Queue\n\n- [ ] Dark mode\n- [x] Export → plans/02/export.md\n- [ ]  \n';
+    const project = buildProject(tree, 'plans', new Map([['plans/queue.md', text]]), { lanes: [] });
+    assert.deepEqual(project.plans.map(p => p.name), ['idea.md']);
+    assert.deepEqual(project.queue, {
+        resource: 'plans/queue.md', exists: true,
+        open: [{ text: 'Dark mode', notes: [] }], processed: [{ text: 'Export → plans/02/export.md', notes: [] }],
+    });
+    assert.equal(buildProject({ children: [] }, 'plans', new Map(), { lanes: [] }).queue.exists, false);
+});
+
+test('adding to and removing from the queue', () => {
+    const started = addQueueItems('', ['  Dark   mode ', '']);
+    assert.match(started, /^# Queue\n\n.*\n.*\n\n- \[ \] Dark mode\n$/);
+    const more = addQueueItems(started, ['Export', 'Search']);
+    assert.match(more, /- \[ \] Dark mode\n- \[ \] Export\n- \[ \] Search\n$/);
+    assert.deepEqual(parseQueue(removeQueueItem(more, 'Export')).open.map(item => item.text), ['Dark mode', 'Search']);
+    assert.equal(removeQueueItem('- [x] Export\n', 'Export'), '- [x] Export\n');   // processed items stay
+    assert.equal(addQueueItems('# Q\r\n\r\nNotes.\r\n', ['A']), '# Q\r\n\r\nNotes.\r\n\r\n- [ ] A\r\n');
+});
+
+test('an agent asks about a queue item, and the person answers', () => {
+    const asked = '- [ ] Search\n  - Question: Which runbooks?\n- [ ] Export\n';
+    assert.deepEqual(parseQueue(asked).open, [{ text: 'Search', notes: ['Question: Which runbooks?'] }, { text: 'Export', notes: [] }]);
+    const answered = answerQueueItem(asked, 'Search', ' All of   them ');
+    assert.equal(answered, '- [ ] Search\n  - Question: Which runbooks?\n  - Answer: All of them\n- [ ] Export\n');
+    assert.equal(answerQueueItem('- [ ] Search', 'Search', 'Yes'), '- [ ] Search\n  - Answer: Yes\n');
+    assert.equal(answerQueueItem(asked, 'Missing', 'x'), asked);
+    assert.equal(removeQueueItem(answered, 'Search'), '- [ ] Export\n');                   // its notes go with it
+    assert.equal(addQueueItems(asked.trim(), ['New']), `${asked}- [ ] New\n`);             // no gap after a note
+});
+
+test('folderPaths suggests project folders, skipping hidden and package ones', () => {
+    const tree = { children: [
+        { name: 'plans', type: 'folder', children: [{ name: '01-a', type: 'folder', children: [] }] },
+        { name: '.git', type: 'folder', children: [] },
+        { name: 'packages', type: 'folder', children: [] },
+        { name: 'notes.md', type: 'file' },
+    ] };
+    assert.deepEqual(folderPaths(tree), ['plans', 'plans/01-a']);
 });

@@ -87,3 +87,13 @@ test('plans sent back from review come first, with their follow-ups', () => {
     assert.match(brief, /## Sent back from review\n\n.*\n\n- API — .*\n  - \[ \] Rename it/);
     assert.match(agentInstructions({ root: 'plans', lanes: [] }, 'r.roadmap'), /Follow-ups come first/);
 });
+
+test('the brief lists the queue, and the guide explains processing it', () => {
+    const tree = folder('plans', [file('queue.md'), folder('01-alpha', [file('api.md')])]);
+    const contents = new Map([['plans/queue.md', '- [ ] Dark mode\n- [x] Done one\n'], ['plans/01-alpha/api.md', '# API\n']]);
+    const brief = roadmapBrief(buildProject(tree, 'plans', contents, { lanes: [] }), { today: '2026-11-16', roadmapResource: 'r.roadmap' });
+    assert.match(brief, /## Queue\n\nWaiting in `plans\/queue.md` to be turned into plans:\n\n- \[ \] Dark mode\n\n## Problems/);
+    const guide = agentInstructions({ root: 'plans', lanes: [] }, 'r.roadmap');
+    assert.match(guide, /`plans\/queue.md` holds ideas/);
+    assert.match(guide, /tick the item and add where it went/);
+});
