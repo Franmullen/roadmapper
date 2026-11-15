@@ -7,7 +7,7 @@ description: How a plan in Roadmapper goes from ready to merged - branch, build,
 
 The repository owner is the only person on this project. Agents build, the owner accepts. Reviews run locally; there is no paid review in GitHub. Plans (`plans/`) and `CLAUDE.md` are local files that git ignores, so plan edits are never committed and stay put when you switch branches.
 
-1. **Start.** The plan should be ready (see the brief). Create `git switch -c plan/<plan-file-name>` from an up-to-date `main`. Set the plan's `status: doing` and `owner:`.
+1. **Start.** Work begins from a plan. If the owner asked for something in conversation, find the plan it belongs to or create one first (see "Work asked for directly" in `CLAUDE.md`). The plan should be ready (see the brief). Create `git switch -c plan/<plan-file-name>` from an up-to-date `main`. Set the plan's `status: doing` and `owner:`.
 2. **Build** the smallest change that does the plan, and add tests for logic in `model.js` and `agents.js`. Keep unrelated changes out. Try UI changes on a mock board in Celbridge (see `CLAUDE.md`).
 3. **Gate.** `python scripts/check.py` must pass. Fix what you broke. If a failure was already there, say so.
 4. **Review.** Start the `feature-reviewer` subagent with the plan path and `main` as the base. It runs in a fresh context and reads only. Check each finding against the code:
