@@ -22,3 +22,4 @@ scratch/
 # The roadmap and the agent guide are local working files, not part of the repository
 plans/
 CLAUDE.md
+roadmapper.roadmap

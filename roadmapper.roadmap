@@ -1,9 +1,0 @@
-{
-  "root": "plans",
-  "lanes": [
-    "core",
-    "ui",
-    "agents",
-    "community"
-  ]
-}
