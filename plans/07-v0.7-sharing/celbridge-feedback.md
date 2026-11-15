@@ -4,7 +4,7 @@ lane: community
 ---
 # Feedback for Celbridge
 
-Report what we learned building Roadmapper: bugs as GitHub issues, feature requests on the forum first. Drafts are in `feedback/celbridge/`.
+Report what we learned building Roadmapper: bugs as GitHub issues, feature requests on the forum first. Drafts are in `scratch/feedback/celbridge/`.
 
 ## Tasks
 

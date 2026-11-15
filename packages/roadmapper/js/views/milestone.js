@@ -6,7 +6,7 @@ import { STATUSES, STATUS_LABELS } from '../model.js';
 import {
     addPlanButton, button, dependencyChip, dependencyLinks, dragPayload, el, followUpChip, icon, inlinePrompt, milestoneHeader, ownerTag,
     reviewControls,
-    statusChip,
+    statusChip, taskList,
 } from '../ui.js';
 
 const NEW_LANE = '\u0000new';
@@ -79,9 +79,7 @@ function reviewPanel(ctx, plan) {
     const panel = el('div', 'review-panel');
     if (plan.openTasks.length) {
         panel.appendChild(el('div', 'review-label', 'To check'));
-        const list = el('ul', 'review-checks');
-        for (const task of plan.openTasks) list.appendChild(el('li', '', task));
-        panel.appendChild(list);
+        panel.appendChild(taskList(ctx, plan));
     }
     panel.appendChild(reviewControls(ctx, plan));
     return panel;

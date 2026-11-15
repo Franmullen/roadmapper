@@ -6,7 +6,7 @@ import {
     laneOrder, milestoneTemplate, nextMilestoneFolder, normalizeFolder, normalizeStatus, parseConfig, parseFrontMatter,
     planTemplate, serializeConfig, setFrontMatter, slugify, summarizeMarkdown, summarizeMilestone, uniqueFileName,
     buildProject, statusCounts, todayMarkerIndex, isMilestoneOverdue, parseList, projectResources, dropChanges, focusProject, planTotal,
-    approveReview, addFollowUps, parseIdeas, addIdeas, removeIdea, answerIdea, folderPaths,
+    approveReview, addFollowUps, parseIdeas, addIdeas, removeIdea, answerIdea, folderPaths, taskParts, taskText,
 } from '../js/model.js';
 import { fitState, zoomAt } from '../js/viewport.js';
 
@@ -412,4 +412,19 @@ test('folderPaths suggests project folders, skipping hidden and package ones', (
         { name: 'notes.md', type: 'file' },
     ] };
     assert.deepEqual(folderPaths(tree), ['plans', 'plans/01-a']);
+});
+
+test('taskParts resolves links to project files against the plan folder', () => {
+    const plan = 'plans/06-refine/quality-system.md';
+    assert.deepEqual(taskParts('Check: read [the skill](../../.claude/skills/ship-plan/SKILL.md) and [notes](notes.md#top)', plan), [
+        { text: 'Check: read ' },
+        { text: 'the skill', resource: '.claude/skills/ship-plan/SKILL.md' },
+        { text: ' and ' },
+        { text: 'notes', resource: 'plans/06-refine/notes.md' },
+    ]);
+    assert.deepEqual(taskParts('[docs](/docs/a%20b.md)', plan), [{ text: 'docs', resource: 'docs/a b.md' }]);
+    assert.deepEqual(taskParts('[web](https://example.com) and [out](../../../x.md)', plan),
+        [{ text: 'web' }, { text: ' and ' }, { text: 'out' }]);
+    assert.deepEqual(taskParts('No links', plan), [{ text: 'No links' }]);
+    assert.equal(taskText('Read [the skill](a.md) now'), 'Read the skill now');
 });

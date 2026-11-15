@@ -1,7 +1,7 @@
 ---
 status: todo
 lane: core
-depends: review-pass
+depends: review-pass, quality-system
 ---
 # Architecture review
 
@@ -9,5 +9,5 @@ Step back and check the shape of the package now that it has grown: the module b
 
 ## Tasks
 
-- [ ] Write up the current architecture and what to change, as a short note in this plan
-- [ ] Agree what to change, and add plans for it
+- [ ] Run the `architecture-audit` skill (the read-only `architecture-reviewer` surveys the repo)
+- [ ] Update `docs/architecture.md` and `docs/debt.md`; its top improvements go to the Ideas tab

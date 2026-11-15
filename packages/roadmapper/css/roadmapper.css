@@ -528,6 +528,17 @@ body.read-only .write-only {
     font-size: var(--cel-font-size-small);
 }
 
+.task-link {
+    padding: 0;
+    border: none;
+    background: none;
+    min-height: 0;
+    color: var(--cel-accent);
+    font: inherit;
+    text-decoration: underline;
+    cursor: pointer;
+}
+
 /* --- Progress and status bars --- */
 
 .progress {
