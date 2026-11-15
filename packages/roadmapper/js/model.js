@@ -5,14 +5,14 @@
 // The project every view draws from:
 //   {
 //     root,                                   // the board's folder
-//     queue: { resource, exists, open: ['text'], processed: ['text'] },   // <root>/queue.md, for an agent
+//     ideas: { resource, exists, open: [idea], processed: [idea] },   // <root>/ideas.md; idea: { text, notes, milestone, lane }
 //     lanes: ['core', 'ui', ...],             // display order
 //     milestones: [{ folder, name, title, due, description, metaResource, unsorted, truncated,
 //                    plans: [...], counts: { todo, doing, review, done, blocked } }],
 //     plans: [{ resource, name, path, milestone, title, status, statusExplicit, lane, owner, done, total,
 //               openTasks: ['text'], followUps: ['text'],  // unticked tasks, and those under ## Follow-ups
 //               dependsOn: ['ref'],                       // the raw `depends:` list
-//               depends: [{ ref, resource, title, done, problem }],  // resolved; problem: missing, ambiguous, later
+//               depends: [{ ref, resource, title, done, status, problem }],  // resolved; problem: missing, ambiguous, later
 //               dependents: [resource],                   // plans that depend on this one
 //               waitingOn }],                             // how many dependencies are not done yet
 //   }
@@ -30,8 +30,8 @@ export const STATUS_LABELS = {
 // Files that describe a milestone (or the whole board, at the root) rather than being a plan.
 const MILESTONE_FILES = ['readme.md', '_milestone.md'];
 
-// The queue: ideas and requests a person lines up for an agent to turn into plans. It sits in the root.
-export const QUEUE_FILE = 'queue.md';
+// Ideas a person jots down for an agent to turn into plans. The file sits in the root.
+export const IDEAS_FILE = 'ideas.md';
 
 // --- Settings (.roadmap file) ---
 
@@ -268,8 +268,8 @@ function isMilestoneFile(node) {
     return MILESTONE_FILES.includes(node.name.toLowerCase());
 }
 
-function isQueueFile(node) {
-    return node.name.toLowerCase() === QUEUE_FILE;
+function isIdeasFile(node) {
+    return node.name.toLowerCase() === IDEAS_FILE;
 }
 
 const byName = (a, b) => a.name.localeCompare(b.name, undefined, { numeric: true, sensitivity: 'base' });
@@ -282,7 +282,7 @@ export function scanTree(tree, root) {
     const children = tree?.children ?? [];
     const milestones = [];
 
-    const loose = children.filter(node => isMarkdown(node) && !isMilestoneFile(node) && !isQueueFile(node)).sort(byName);
+    const loose = children.filter(node => isMarkdown(node) && !isMilestoneFile(node) && !isIdeasFile(node)).sort(byName);
     if (loose.length > 0) {
         milestones.push({
             name: 'Unsorted',
@@ -324,9 +324,9 @@ function collectMarkdown(folder, prefix, topLevel) {
 
 // Every file buildProject needs the text of: the milestone READMEs and the plans.
 export function projectResources(tree, root) {
-    const queue = (tree?.children ?? []).find(node => !isFolder(node) && isQueueFile(node));
+    const ideas = (tree?.children ?? []).find(node => !isFolder(node) && isIdeasFile(node));
     return [
-        ...(queue ? [`${root}/${queue.name}`] : []),
+        ...(ideas ? [`${root}/${ideas.name}`] : []),
         ...scanTree(tree, root).flatMap(m => [...(m.metaResource ? [m.metaResource] : []), ...m.files.map(f => f.resource)]),
     ];
 }
@@ -419,32 +419,37 @@ export function buildProject(tree, root, contents, config) {
     });
     const plans = milestones.flatMap(milestone => milestone.plans);
     linkDependencies(milestones, root);
-    const queueNode = (tree?.children ?? []).find(node => !isFolder(node) && isQueueFile(node));
-    const queueResource = `${root}/${queueNode?.name ?? QUEUE_FILE}`;
-    const queue = { resource: queueResource, exists: Boolean(queueNode), ...parseQueue(contents.get(queueResource) ?? '') };
-    return { root, milestones, plans, lanes: laneOrder(config.lanes, plans), queue };
+    const ideasNode = (tree?.children ?? []).find(node => !isFolder(node) && isIdeasFile(node));
+    const ideasResource = `${root}/${ideasNode?.name ?? IDEAS_FILE}`;
+    const ideas = { resource: ideasResource, exists: Boolean(ideasNode), ...parseIdeas(contents.get(ideasResource) ?? '') };
+    return { root, milestones, plans, lanes: laneOrder(config.lanes, plans), ideas };
 }
 
-// --- The queue ---
+// --- Ideas ---
 
-const QUEUE_ITEM = /^\s*[-*+]\s+\[([ xX])\]\s*(.*)$/;
+const IDEA_ITEM = /^\s*[-*+]\s+\[([ xX])\]\s*(.*)$/;
 
 const LIST_LINE = /^\s*[-*+]\s/;
-const NOTE_LINE = /^\s+\S/;   // indented under an item: an agent's question, or a person's answer
+const NOTE_LINE = /^\s+\S/;   // indented under an idea: its target, an agent's question, or a person's answer
+const TARGET_NOTE = /^(milestone|lane):\s*(.+)$/i;
 
-// The queue's items, as { text, notes }: unticked ones are waiting for an agent, ticked ones have been
-// turned into plans. Notes are the indented lines under an item, without their bullets.
-export function parseQueue(text) {
+// The ideas, as { text, notes, milestone, lane }: unticked ones are waiting for an agent, ticked ones
+// have been turned into plans. Notes are the indented lines under an idea, without their bullets; a
+// "Milestone: …" or "Lane: …" note says where the person wants it, and is not listed with the others.
+export function parseIdeas(text) {
     const open = [];
     const processed = [];
     let current = null;
     for (const line of withoutBom(text ?? '').split(/\r?\n/)) {
-        const item = line.match(QUEUE_ITEM);
+        const item = line.match(IDEA_ITEM);
         if (item && !/^\s/.test(line)) {
-            current = item[2].trim() ? { text: item[2].trim(), notes: [] } : null;
+            current = item[2].trim() ? { text: item[2].trim(), notes: [], milestone: '', lane: '' } : null;
             if (current) (item[1] === ' ' ? open : processed).push(current);
         } else if (current && NOTE_LINE.test(line)) {
-            current.notes.push(line.trim().replace(/^[-*+]\s+/, ''));
+            const note = line.trim().replace(/^[-*+]\s+/, '');
+            const target = note.match(TARGET_NOTE);
+            if (target) current[target[1].toLowerCase()] = target[2].trim();
+            else current.notes.push(note);
         } else if (line.trim()) {
             current = null;
         }
@@ -453,9 +458,9 @@ export function parseQueue(text) {
 }
 
 // The lines of the first unticked item with this text, with its notes: [start, end).
-function queueItemLines(lines, item) {
+function ideaLines(lines, item) {
     const start = lines.findIndex(line => {
-        const match = line.replace(/\r?\n$/, '').match(QUEUE_ITEM);
+        const match = line.replace(/\r?\n$/, '').match(IDEA_ITEM);
         return match && !/^\s/.test(line) && match[1] === ' ' && match[2].trim() === item;
     });
     if (start < 0) return null;
@@ -464,20 +469,22 @@ function queueItemLines(lines, item) {
     return [start, end];
 }
 
-export function queueTemplate() {
+export function ideasTemplate() {
     return [
-        '# Queue',
+        '# Ideas',
         '',
-        'Ideas and requests for an agent. Ask it to "process the queue": it turns each unticked item into plans,',
-        'then ticks the item and notes where it went.',
+        'Ideas for this project. Ask an agent to "process the ideas": it turns each unticked one into plans,',
+        'then ticks it and notes where it went.',
         '',
     ].join('\n');
 }
 
-// Adds items to the end of the queue, starting one if there is none.
-export function addQueueItems(text, items) {
-    const lines = items.map(item => item.trim().replace(/\s+/g, ' ')).filter(Boolean).map(item => `- [ ] ${item}`);
-    const source = text && text.trim() ? text : queueTemplate();
+// Adds ideas to the end of the list, starting one if there is none. A target milestone or lane, when
+// given, goes under each idea as a note.
+export function addIdeas(text, items, { milestone = '', lane = '' } = {}) {
+    const targets = [milestone && `  - Milestone: ${milestone}`, lane && `  - Lane: ${lane}`].filter(Boolean);
+    const lines = items.map(item => item.trim().replace(/\s+/g, ' ')).filter(Boolean).flatMap(item => [`- [ ] ${item}`, ...targets]);
+    const source = text && text.trim() ? text : ideasTemplate();
     const eol = source.includes('\r\n') ? '\r\n' : '\n';
     const body = source.replace(/\s*$/, '');
     const lastLine = body.slice(body.lastIndexOf('\n') + 1);
@@ -486,18 +493,18 @@ export function addQueueItems(text, items) {
 }
 
 // Removes the first unticked item with this text, with its notes.
-export function removeQueueItem(text, item) {
+export function removeIdea(text, item) {
     const lines = text.split(/(?<=\n)/);
-    const range = queueItemLines(lines, item);
+    const range = ideaLines(lines, item);
     if (range) lines.splice(range[0], range[1] - range[0]);
     return lines.join('');
 }
 
 // Answers an agent's question on an item: an indented "Answer:" line after its notes.
-export function answerQueueItem(text, item, answer) {
+export function answerIdea(text, item, answer) {
     const reply = answer.trim().replace(/\s+/g, ' ');
     const lines = text.split(/(?<=\n)/);
-    const range = queueItemLines(lines, item);
+    const range = ideaLines(lines, item);
     if (!range || !reply) return text;
     const eol = text.includes('\r\n') ? '\r\n' : '\n';
     const last = range[1] - 1;
@@ -546,6 +553,7 @@ function linkDependencies(milestones, root) {
                 resource: target?.resource ?? null,
                 title: target?.title ?? ref,
                 done: target?.status === 'done',
+                status: target?.status ?? null,
                 problem,
             };
         });

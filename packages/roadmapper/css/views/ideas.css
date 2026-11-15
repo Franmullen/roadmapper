@@ -1,0 +1,105 @@
+/* Ideas view (js/views/ideas.js). The desk layout it shares with Reviews is in roadmapper.css. */
+
+.idea-capture {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+}
+
+.idea-input {
+    box-sizing: border-box;
+    width: 100%;
+}
+
+.idea-targets {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px;
+}
+
+.idea-target {
+    font: inherit;
+    font-size: var(--cel-font-size-small);
+}
+
+.idea-list {
+    margin: 0;
+    padding: 0;
+    list-style: none;
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+}
+
+.idea {
+    padding: 4px 8px;
+    background: var(--cel-content-bg);
+    border: 1px solid var(--cel-divider);
+    border-radius: var(--cel-radius-control);
+}
+
+.idea.asked {
+    border-left: 3px solid var(--rm-review);
+}
+
+.idea-line {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.idea-text {
+    flex: 1;
+}
+
+.idea-chip {
+    padding: 0 6px;
+    border: 1px solid var(--cel-divider);
+    border-radius: var(--cel-radius-control);
+    font-size: var(--cel-font-size-small);
+    color: var(--cel-text-secondary);
+    white-space: nowrap;
+}
+
+.idea-note {
+    margin: 2px 0 0 12px;
+    font-size: var(--cel-font-size-small);
+    color: var(--cel-text-secondary);
+}
+
+.idea-question {
+    color: var(--cel-text-primary);
+}
+
+.idea-reply {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    padding: 0 8px;
+    min-height: 0;
+    font: inherit;
+    font-size: var(--cel-font-size-small);
+    color: var(--rm-review);
+    background: var(--cel-content-bg);
+    border: 1px solid var(--rm-review);
+    border-radius: var(--cel-radius-control);
+    cursor: pointer;
+}
+
+.idea-remove {
+    padding: 0 4px;
+    min-height: 0;
+    border: none;
+    background: none;
+    color: var(--cel-text-secondary);
+    cursor: pointer;
+}
+
+.idea-remove:hover {
+    color: var(--rm-blocked);
+}
+
+.idea-processed {
+    margin: 4px 0 0;
+    padding-left: 18px;
+}

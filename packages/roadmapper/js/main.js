@@ -127,9 +127,9 @@ const commands = {
         render();
     },
     createPlan: (folder, lane, title) => act(() => actions.createPlan(project, folder, lane, title)),
-    addToQueue: items => act(() => actions.addToQueue(project, items)),
-    removeFromQueue: item => act(() => actions.removeFromQueue(project, item)),
-    answerInQueue: (item, answer) => act(() => actions.answerInQueue(project, item, answer)),
+    saveIdeas: (items, target) => act(() => actions.saveIdeas(project, items, target)),
+    deleteIdea: item => act(() => actions.deleteIdea(project, item)),
+    replyToIdea: (item, answer) => act(() => actions.replyToIdea(project, item, answer)),
     createMilestone: title => act(() => actions.createMilestone(project, config, title, rootMissing), { rewatch: rootMissing }),
     updatePlan: (resource, updates) => act(() => actions.updatePlan(resource, updates)),
     approvePlan: resource => act(() => actions.reviewPlan(resource)),
@@ -301,7 +301,7 @@ function render() {
     restoreInput(kept);
 }
 
-// A field marked data-keep-focus (like the queue's) survives a re-render, so a rescan never loses what
+// A field marked data-keep-focus (like the ideas box) survives a re-render, so a rescan never loses what
 // is being typed into it.
 function keptInput() {
     const input = document.activeElement;

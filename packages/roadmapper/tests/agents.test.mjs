@@ -88,12 +88,20 @@ test('plans sent back from review come first, with their follow-ups', () => {
     assert.match(agentInstructions({ root: 'plans', lanes: [] }, 'r.roadmap'), /Follow-ups come first/);
 });
 
-test('the brief lists the queue, and the guide explains processing it', () => {
-    const tree = folder('plans', [file('queue.md'), folder('01-alpha', [file('api.md')])]);
-    const contents = new Map([['plans/queue.md', '- [ ] Dark mode\n- [x] Done one\n'], ['plans/01-alpha/api.md', '# API\n']]);
+test('the brief lists ideas with their targets, and the guide explains processing them', () => {
+    const tree = folder('plans', [file('ideas.md'), folder('01-alpha', [file('api.md')])]);
+    const contents = new Map([['plans/ideas.md', '- [ ] Dark mode\n  - Lane: ui\n- [x] Done one\n'], ['plans/01-alpha/api.md', '# API\n']]);
     const brief = roadmapBrief(buildProject(tree, 'plans', contents, { lanes: [] }), { today: '2026-11-16', roadmapResource: 'r.roadmap' });
-    assert.match(brief, /## Queue\n\nWaiting in `plans\/queue.md` to be turned into plans:\n\n- \[ \] Dark mode\n\n## Problems/);
+    assert.match(brief, /## Ideas\n\nWaiting in `plans\/ideas.md` to be turned into plans:\n\n- \[ \] Dark mode\n  - Lane: ui\n\n## Problems/);
     const guide = agentInstructions({ root: 'plans', lanes: [] }, 'r.roadmap');
-    assert.match(guide, /`plans\/queue.md` holds ideas/);
-    assert.match(guide, /tick the item and add where it went/);
+    assert.match(guide, /`plans\/ideas.md` holds ideas/);
+    assert.match(guide, /`- Milestone: …` or `- Lane: …` line under an idea/);
+    assert.match(guide, /Reviews unblock work/);
+});
+
+test('a dependency in review shows in the brief as waiting on review', () => {
+    const tree = folder('plans', [folder('01-alpha', [file('api.md'), file('ui.md')])]);
+    const contents = new Map([['plans/01-alpha/api.md', '---\nstatus: review\n---\n# API\n'], ['plans/01-alpha/ui.md', '---\ndepends: api\n---\n# UI\n']]);
+    const brief = roadmapBrief(buildProject(tree, 'plans', contents, { lanes: [] }), { today: '2026-11-16', roadmapResource: 'r.roadmap' });
+    assert.match(brief, /- UI — .* waits on API \(in review\)/);
 });

@@ -78,7 +78,8 @@ Plans show what they are waiting on. A dependency is flagged in red when no plan
 
 - **Road** (the default): the milestones as stops along a road, in order. Each stop shows its due date, plans done, a bar split by status, the lanes involved and its plans. A **Today** marker sits between the milestones due before and after today. Overdue stops turn red and finished ones show a tick. Click a plan to open its file, or drag it to another stop to move it there. Click a stop's title to open that milestone.
 - **Map**: the whole project at once. Lanes are bands, milestones are columns and each plan is a node, with arrows from each plan to the plans that depend on it. Hover a plan to pick out its links; click it to open it. Zoomed out, plans become coloured blocks; zoom in for titles and task counts.
-- **Reviews**: your desk. The tab's badge counts the plans waiting for review. It lists them with what to check, the queue of ideas for an agent, plans sent back and waiting on an agent, and anything blocked (see [The review loop](#the-review-loop)).
+- **Reviews**: the plans waiting for you, counted on the tab's badge, each with what to check and what approving it would let the agent start (see [The loop](#the-loop)).
+- **Ideas**: a place to jot ideas down, for an agent to plan. The tab's badge counts questions the agent has asked you.
 - **Milestone**: one milestone's plans grouped by status, with each plan's lane and links to its dependencies. Use **Back** or Escape to return.
 
 **Focus:** by default the views show work now and next: the milestones from the first unfinished one through the one after the last with work started, without their finished plans. A "✓ N done" note stands in for finished plans, and on the Road, collapsed stretches stand in for hidden milestones. **Show all** on the toolbar shows everything; the editor remembers which you chose.
@@ -103,28 +104,28 @@ Roadmapper is for keeping the big picture while agents do the detailed work: you
 - **Click a folder name** to show that folder in the Explorer.
 - A due date turns red once it has passed and the milestone still has work left.
 
-### The review loop
+### The loop
 
-Roadmapper keeps you in the loop on the big picture while agents do the work. The **Reviews** tab is where you do that:
+Roadmapper keeps you in the loop on the big picture while agents do the work.
 
-1. **Queue up ideas.** Type ideas and requests into the queue, one per Enter, or paste a list. They go into `queue.md` in the roadmap's folder.
-2. **Let the agent plan them.** Ask the agent to "process the queue". It turns each item into plans in the right milestone, then ticks the item and notes where it went. Ask it to "take the ready plans" when you want the work done too.
-3. **Review.** Finished work comes back with what to check. **Approve** sets `status: done` and ticks the remaining tasks. **Follow up** asks for what still needs doing (separate several with `;`). Each follow-up becomes an unticked task under `## Follow-ups` in the plan, and the plan goes back to `todo`.
-4. **Loop.** Ask the agent to "do the follow-ups". Sent-back plans head its brief, so it does them before new work.
+1. **Ideas.** Jot ideas down on the Ideas tab, one per Enter, or paste a list. Each can name a milestone (existing or new) or a lane, or leave that to the agent. They go into `ideas.md` in the roadmap's folder.
+2. **Planning.** Ask the agent to "process the ideas". It turns each one into plans, in an existing milestone or a new one, then ticks the idea and notes where it went. If it can't place one, it asks; answer with **Reply**.
+3. **Work.** Ask the agent to "take the ready plans". It finishes each in review, with what you should check.
+4. **Reviews.** On the Reviews tab, **Approve** what's finished: it becomes done, its remaining tasks are ticked, and plans waiting on it become ready for the agent. Or **Follow up**: write what still needs doing, one per line. Those become tasks under `## Follow-ups`, the plan goes back to To do, and the agent does follow-ups before new work.
 
-Approve and Follow up are also on plans in review on the Road and in the milestone view.
+Plans in review on the Road and in the milestone view have the same two buttons.
 
 ## AI agents
 
 An agent steers by the roadmap through files alone; there is nothing to click.
 
 - **Agent guide** on the toolbar adds a Roadmapper section to the project's `CLAUDE.md`, which Claude Code reads, including when it's launched from Celbridge with `cel.agent.claude()`. The section explains the format, how to read the roadmap, and how to work from it: do any review follow-ups first, pick a ready plan, set `status: doing` and `owner:`, tick tasks as they're done, and finish in `review` with what to check left as unticked tasks. Press it again after changing lanes. Everything outside its `<!-- roadmapper:start -->` / `<!-- roadmapper:end -->` markers is left alone.
-- **The brief:** while a board is open, it keeps a short summary in Celbridge's `temp:roadmapper/` folder (local to your machine, never committed). It lists the milestones, plans sent back from review, what's in progress, what's ready to start, the queue, what's waiting or blocked, and broken dependencies, so an agent can understand the roadmap in one read.
+- **The brief:** while a board is open, it keeps a short summary in Celbridge's `temp:roadmapper/` folder (local to your machine, never committed). It lists the milestones, plans sent back from review, what's in progress, what's ready to start, what's waiting (including on a review) or blocked, the ideas, and broken dependencies, so an agent can understand the roadmap in one read.
 
 So you can simply ask an agent things like:
 
 - "Where does this project stand, and what's next?"
-- "Process the queue."
+- "Process the ideas."
 - "Do the follow-ups."
 - "Take the next ready plan in the ui lane."
 - "Plan out the v0.3 milestone."

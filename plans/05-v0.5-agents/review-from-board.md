@@ -14,7 +14,8 @@ Run reviews from the board, then hand what's left back to an agent. A plan in re
 - [x] Approve and Follow up on the Road, the Board and the milestone view; the milestone view lists what is left to check
 - [x] "N follow-ups" chip, a "Sent back from review" section in the brief, and the guide's "follow-ups come first"
 - [x] Tried on a mock board: both buttons write the file as expected, and the brief updates
-- [x] A Reviews tab with a badge: plans to review, the queue for the agent (with its questions and your answers), sent-back plans and blocked plans
-- [x] Tried a restricted agent on a mock queue: it planned two items, asked about the unclear one, then used the answer
+- [x] A Reviews tab (just the reviews, with what approving unblocks) and an Ideas tab (jot ideas, optionally aimed at a milestone or lane; the agent's questions and your replies)
+- [x] A proper follow-up box: one follow-up per line, Ctrl+Enter sends
+- [x] Tried a restricted agent on mock ideas: it planned two, asked about the unclear one, then used the answer
 - [ ] Check: review our own v0.2 to v0.5 plans from the Reviews tab, sending back anything that needs more work
-- [ ] Check: queue a few ideas, ask Claude in Celbridge to "process the queue", then "do the follow-ups"
+- [ ] Check: jot a few ideas, ask Claude in Celbridge to "process the ideas", then "do the follow-ups"

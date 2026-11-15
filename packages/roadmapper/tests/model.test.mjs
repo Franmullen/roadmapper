@@ -6,7 +6,7 @@ import {
     laneOrder, milestoneTemplate, nextMilestoneFolder, normalizeFolder, normalizeStatus, parseConfig, parseFrontMatter,
     planTemplate, serializeConfig, setFrontMatter, slugify, summarizeMarkdown, summarizeMilestone, uniqueFileName,
     buildProject, statusCounts, todayMarkerIndex, isMilestoneOverdue, parseList, projectResources, dropChanges, focusProject, planTotal,
-    approveReview, addFollowUps, parseQueue, addQueueItems, removeQueueItem, answerQueueItem, folderPaths,
+    approveReview, addFollowUps, parseIdeas, addIdeas, removeIdea, answerIdea, folderPaths,
 } from '../js/model.js';
 import { fitState, zoomAt } from '../js/viewport.js';
 
@@ -366,38 +366,42 @@ test('sending a plan back adds follow-ups and returns it to todo', () => {
     assert.equal(addFollowUps('# A\r\n\r\n## Follow-ups\r\n', ['x']), '---\r\nstatus: todo\r\n---\r\n# A\r\n\r\n## Follow-ups\r\n\r\n- [ ] x\r\n');
 });
 
-test('the queue lists open and processed items, and is not a plan', () => {
-    const tree = { name: 'plans', children: [{ name: 'queue.md', type: 'file' }, { name: 'idea.md', type: 'file' }] };
-    assert.deepEqual(projectResources(tree, 'plans'), ['plans/queue.md', 'plans/idea.md']);
-    const text = '# Queue\n\n- [ ] Dark mode\n- [x] Export → plans/02/export.md\n- [ ]  \n';
-    const project = buildProject(tree, 'plans', new Map([['plans/queue.md', text]]), { lanes: [] });
-    assert.deepEqual(project.plans.map(p => p.name), ['idea.md']);
-    assert.deepEqual(project.queue, {
-        resource: 'plans/queue.md', exists: true,
-        open: [{ text: 'Dark mode', notes: [] }], processed: [{ text: 'Export → plans/02/export.md', notes: [] }],
+const idea = (text, more = {}) => ({ text, notes: [], milestone: '', lane: '', ...more });
+
+test('ideas are listed open or planned, with their targets, and are not a plan', () => {
+    const tree = { name: 'plans', children: [{ name: 'ideas.md', type: 'file' }, { name: 'note.md', type: 'file' }] };
+    assert.deepEqual(projectResources(tree, 'plans'), ['plans/ideas.md', 'plans/note.md']);
+    const text = '# Ideas\n\n- [ ] Dark mode\n  - Milestone: 03-polish\n  - Lane: ui\n- [x] Export → plans/02/export.md\n- [ ]  \n';
+    const project = buildProject(tree, 'plans', new Map([['plans/ideas.md', text]]), { lanes: [] });
+    assert.deepEqual(project.plans.map(p => p.name), ['note.md']);
+    assert.deepEqual(project.ideas, {
+        resource: 'plans/ideas.md', exists: true,
+        open: [idea('Dark mode', { milestone: '03-polish', lane: 'ui' })], processed: [idea('Export → plans/02/export.md')],
     });
-    assert.equal(buildProject({ children: [] }, 'plans', new Map(), { lanes: [] }).queue.exists, false);
+    assert.equal(buildProject({ children: [] }, 'plans', new Map(), { lanes: [] }).ideas.exists, false);
 });
 
-test('adding to and removing from the queue', () => {
-    const started = addQueueItems('', ['  Dark   mode ', '']);
-    assert.match(started, /^# Queue\n\n.*\n.*\n\n- \[ \] Dark mode\n$/);
-    const more = addQueueItems(started, ['Export', 'Search']);
+test('adding and removing ideas', () => {
+    const started = addIdeas('', ['  Dark   mode ', '']);
+    assert.match(started, /^# Ideas\n\n.*\n.*\n\n- \[ \] Dark mode\n$/);
+    const targeted = addIdeas(started, ['Themes'], { milestone: 'v0.8 Polish', lane: 'ui' });
+    assert.match(targeted, /- \[ \] Dark mode\n- \[ \] Themes\n  - Milestone: v0\.8 Polish\n  - Lane: ui\n$/);
+    const more = addIdeas(started, ['Export', 'Search']);
     assert.match(more, /- \[ \] Dark mode\n- \[ \] Export\n- \[ \] Search\n$/);
-    assert.deepEqual(parseQueue(removeQueueItem(more, 'Export')).open.map(item => item.text), ['Dark mode', 'Search']);
-    assert.equal(removeQueueItem('- [x] Export\n', 'Export'), '- [x] Export\n');   // processed items stay
-    assert.equal(addQueueItems('# Q\r\n\r\nNotes.\r\n', ['A']), '# Q\r\n\r\nNotes.\r\n\r\n- [ ] A\r\n');
+    assert.deepEqual(parseIdeas(removeIdea(more, 'Export')).open.map(item => item.text), ['Dark mode', 'Search']);
+    assert.equal(removeIdea('- [x] Export\n', 'Export'), '- [x] Export\n');   // processed items stay
+    assert.equal(addIdeas('# Q\r\n\r\nNotes.\r\n', ['A']), '# Q\r\n\r\nNotes.\r\n\r\n- [ ] A\r\n');
 });
 
-test('an agent asks about a queue item, and the person answers', () => {
+test('an agent asks about an idea, and the person answers', () => {
     const asked = '- [ ] Search\n  - Question: Which runbooks?\n- [ ] Export\n';
-    assert.deepEqual(parseQueue(asked).open, [{ text: 'Search', notes: ['Question: Which runbooks?'] }, { text: 'Export', notes: [] }]);
-    const answered = answerQueueItem(asked, 'Search', ' All of   them ');
+    assert.deepEqual(parseIdeas(asked).open, [idea('Search', { notes: ['Question: Which runbooks?'] }), idea('Export')]);
+    const answered = answerIdea(asked, 'Search', ' All of   them ');
     assert.equal(answered, '- [ ] Search\n  - Question: Which runbooks?\n  - Answer: All of them\n- [ ] Export\n');
-    assert.equal(answerQueueItem('- [ ] Search', 'Search', 'Yes'), '- [ ] Search\n  - Answer: Yes\n');
-    assert.equal(answerQueueItem(asked, 'Missing', 'x'), asked);
-    assert.equal(removeQueueItem(answered, 'Search'), '- [ ] Export\n');                   // its notes go with it
-    assert.equal(addQueueItems(asked.trim(), ['New']), `${asked}- [ ] New\n`);             // no gap after a note
+    assert.equal(answerIdea('- [ ] Search', 'Search', 'Yes'), '- [ ] Search\n  - Answer: Yes\n');
+    assert.equal(answerIdea(asked, 'Missing', 'x'), asked);
+    assert.equal(removeIdea(answered, 'Search'), '- [ ] Export\n');                   // its notes go with it
+    assert.equal(addIdeas(asked.trim(), ['New']), `${asked}- [ ] New\n`);             // no gap after a note
 });
 
 test('folderPaths suggests project folders, skipping hidden and package ones', () => {

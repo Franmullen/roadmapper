@@ -169,10 +169,49 @@ export function reviewControls(ctx, plan, { compact = false } = {}) {
         `Approve: mark it done and tick its remaining tasks.\n\n${reviewChecks(plan)}`);
     const sendBack = button('review-send-back', [icon('arrow-return-left'), ...label('Follow up')], null,
         'Send it back with follow-ups. They become tasks under "## Follow-ups" and the plan returns to To do, ready for an agent.');
-    sendBack.addEventListener('click', () => inlinePrompt(sendBack, 'Follow-up, then Enter (separate several with ;)',
-        text => ctx.sendBackPlan(plan.resource, text.split(';'))));
+    // On the Road there is no room to write, so Follow up goes to the Reviews tab.
+    sendBack.addEventListener('click', () => (compact ? ctx.showView('reviews') : openFollowUpBox(ctx, plan, controls)));
     controls.append(approve, sendBack);
     return controls;
+}
+
+// A box for writing follow-ups, one per line, in place of the review buttons. Ctrl+Enter or Send back
+// sends them; Escape or Cancel puts the buttons back.
+function openFollowUpBox(ctx, plan, controls) {
+    const box = el('div', 'follow-up-box');
+    const text = el('textarea', 'inline-input follow-up-text');
+    text.rows = 4;
+    text.placeholder = 'What still needs doing? One follow-up per line.';
+    const hint = el('span', 'follow-up-hint', 'Ctrl+Enter to send back');
+    const close = () => {
+        box.replaceWith(controls);
+        document.dispatchEvent(new CustomEvent('rm-prompt-closed'));
+    };
+    const send = () => {
+        const items = text.value.split(/\r?\n/).map(line => line.replace(/^\s*[-*+]\s+(\[ \]\s*)?/, '').trim()).filter(Boolean);
+        if (!items.length) return;
+        close();
+        ctx.sendBackPlan(plan.resource, items);
+    };
+    const actions = el('div', 'follow-up-actions');
+    actions.append(
+        button('review-send-back', [icon('arrow-return-left'), ' Send back'], send, 'Send it back to To do with these follow-ups'),
+        button('follow-up-cancel', 'Cancel', close),
+        hint);
+    box.append(text, actions);
+    for (const type of ['click', 'pointerdown']) box.addEventListener(type, event => event.stopPropagation());
+    box.addEventListener('keydown', event => {
+        event.stopPropagation();
+        if (event.key === 'Enter' && (event.ctrlKey || event.metaKey)) {
+            event.preventDefault();
+            send();
+        } else if (event.key === 'Escape') {
+            event.preventDefault();
+            close();
+        }
+    });
+    controls.replaceWith(box);
+    text.focus();
 }
 
 // A plan sent back from review, waiting for its follow-ups.

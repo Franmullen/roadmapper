@@ -5,7 +5,7 @@
 // except loadProject, whose caller decides what an unreadable folder means.
 
 import {
-    addFollowUps, addQueueItems, answerQueueItem, approveReview, buildProject, dropChanges, folderPaths, milestoneTemplate, removeQueueItem, nextMilestoneFolder, planTemplate, projectResources,
+    addFollowUps, addIdeas, answerIdea, approveReview, buildProject, dropChanges, folderPaths, milestoneTemplate, removeIdea, nextMilestoneFolder, planTemplate, projectResources,
     setFrontMatter, uniqueFileName,
 } from './model.js';
 import { agentInstructions, briefResource, roadmapBrief, upsertSection } from './agents.js';
@@ -94,23 +94,23 @@ export function createActions(client, { notify }) {
         });
     }
 
-    // Adds ideas to the queue file, creating it if needed. The file is read fresh, so an agent's ticks are kept.
-    function addToQueue(project, items) {
-        return attempt('Could not add to the queue.', async () => {
-            const text = project.queue.exists ? await readFile(project.queue.resource) : '';
-            await call('file.write', project.queue.resource, addQueueItems(text, items));
+    // Adds ideas to the ideas file, creating it if needed. The file is read fresh, so an agent's ticks are kept.
+    function saveIdeas(project, items, target) {
+        return attempt('Could not save the idea.', async () => {
+            const text = project.ideas.exists ? await readFile(project.ideas.resource) : '';
+            await call('file.write', project.ideas.resource, addIdeas(text, items, target));
         });
     }
 
-    function removeFromQueue(project, item) {
-        return attempt('Could not remove that from the queue.', async () => {
-            await call('file.write', project.queue.resource, removeQueueItem(await readFile(project.queue.resource), item));
+    function deleteIdea(project, item) {
+        return attempt('Could not remove that idea.', async () => {
+            await call('file.write', project.ideas.resource, removeIdea(await readFile(project.ideas.resource), item));
         });
     }
 
-    function answerInQueue(project, item, answer) {
+    function replyToIdea(project, item, answer) {
         return attempt('Could not save that answer.', async () => {
-            await call('file.write', project.queue.resource, answerQueueItem(await readFile(project.queue.resource), item, answer));
+            await call('file.write', project.ideas.resource, answerIdea(await readFile(project.ideas.resource), item, answer));
         });
     }
 
@@ -217,7 +217,7 @@ export function createActions(client, { notify }) {
     }
 
     return {
-        loadProject, openFile, revealFolder, updatePlan, reviewPlan, addToQueue, removeFromQueue, answerInQueue, listFolders, dropPlan, createPlan, createMilestone,
+        loadProject, openFile, revealFolder, updatePlan, reviewPlan, saveIdeas, deleteIdea, replyToIdea, listFolders, dropPlan, createPlan, createMilestone,
         createMilestoneReadme, createRoot, writeAgentGuide, writeBrief,
     };
 }
