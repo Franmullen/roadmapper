@@ -59,12 +59,19 @@ def code_only(text):
     """The source without comments, strings and regex literals, so rules only look at code.
 
     One left-to-right pass, so a quote inside a regex or a // inside a string can't swallow code.
+    The code inside template literals' ${...} is kept, nested templates included.
     Newlines are kept, so the result has as many lines as the source (architecture() checks this).
-    Template literal ${...} parts are blanked too, which is fine for these rules.
     """
+    out, _ = _code(text, 0, in_template=False)
+    return ''.join(out)
+
+
+def _code(text, i, in_template):
+    """Scans code from i. Inside a template's ${...}, stops at its closing brace. Returns (parts, index)."""
     out = []
-    i, n = 0, len(text)
-    last = ''   # the last code character that wasn't whitespace
+    n = len(text)
+    depth = 0
+    recent = ''   # the last two code characters that weren't whitespace
     while i < n:
         ch = text[i]
         nxt = text[i + 1] if i + 1 < n else ''
@@ -78,9 +85,19 @@ def code_only(text):
             out.append('\n' * text.count('\n', i, end))
             i = end
             continue
+        if in_template and ch == '}' and depth == 0:
+            return out, i + 1
+        if ch == '`':
+            parts, i = _template(text, i + 1)
+            out.extend(parts)
+            recent = (recent + "'")[-2:]
+            continue
+        last = recent[-1:]
         word = re.search(r'(\w+)\s*$', ''.join(out[-20:]))
-        starts_regex = ch == '/' and (last in REGEX_BEFORE or last == '' or (word and word.group(1) in REGEX_KEYWORDS and last.isalpha()))
-        if ch in '\'"`' or starts_regex:
+        increment = recent in ('++', '--')   # i++ / 2 is a division
+        starts_regex = ch == '/' and not increment and (
+            last in REGEX_BEFORE or last == '' or (word and word.group(1) in REGEX_KEYWORDS and last.isalpha()))
+        if ch in '\'"' or starts_regex:
             j = i + 1
             in_class = False
             while j < n:
@@ -88,6 +105,8 @@ def code_only(text):
                 if c == '\\':
                     j += 2
                     continue
+                if c == '\n':
+                    break
                 if ch == '/':
                     if c == '[':
                         in_class = True
@@ -95,20 +114,45 @@ def code_only(text):
                         in_class = False
                     elif c == '/' and not in_class:
                         break
-                    elif c == '\n':
-                        break
-                elif c == ch or (c == '\n' and ch != '`'):
+                elif c == ch:
                     break
                 j += 1
-            out.append("''" + '\n' * text.count('\n', i, j))
-            i = j + 1
-            last = "'"
+            out.append("''")
+            i = j + 1 if j < n and text[j] != '\n' else j
+            recent = (recent + "'")[-2:]
             continue
+        if ch == '{':
+            depth += 1
+        elif ch == '}':
+            depth -= 1
         out.append(ch)
         if not ch.isspace():
-            last = ch
+            recent = (recent + ch)[-2:]
         i += 1
-    return ''.join(out)
+    return out, i
+
+
+def _template(text, i):
+    """Scans a template literal's body from i (after the opening backtick). Keeps newlines and ${...} code."""
+    out = ["'"]
+    n = len(text)
+    while i < n:
+        c = text[i]
+        if c == '\\':
+            i += 2
+            continue
+        if c == '`':
+            return out + ["'"], i + 1
+        if c == '$' and i + 1 < n and text[i + 1] == '{':
+            parts, i = _code(text, i + 2, in_template=True)
+            out.append(' ')
+            out.extend(parts)
+            out.append(' ')
+            continue
+        if c == '\n':
+            out.append('\n')
+        i += 1
+    return out + ["'"], i
 
 
 def architecture():
