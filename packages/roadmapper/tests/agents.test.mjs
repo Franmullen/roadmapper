@@ -63,6 +63,8 @@ test('agent instructions name the root, lanes, brief and work loop', () => {
     assert.match(text, /`blocked`/);
     assert.match(text, /temp:roadmapper\/roadmapper\.md/);
     assert.match(text, /`owner:`/);
+    assert.match(text, /### Work asked for directly/);
+    assert.match(text, /find the plan the request belongs to/);
 });
 
 test('upsertSection appends once, then replaces in place', () => {
