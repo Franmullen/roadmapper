@@ -15,10 +15,10 @@ The repository owner is the only person on this project. Agents build, the owner
    - put P2s you won't fix in the PR under "Review findings deferred", or in `docs/debt.md` if they last;
    - ignore P3s.
    Then run the gate again. **Stop after two review-and-fix rounds.** If a P0 or P1 is still open, set the plan to `blocked` with the reason and tell the owner.
-5. **Pull request.** Push, then run `gh pr create` using the template. Fill in the plan, what it does, what to check, and the findings. CI runs the same gate.
-6. **Acceptance.** Set the plan to `status: review`, with what the owner should try left as unticked `- [ ] Check: …` tasks. The owner reviews it on the Reviews tab.
-   - **Approve** (`status: done`): merge with `gh pr merge --squash --delete-branch`, then `git switch main && git pull`.
-   - **Follow up** (back to `todo`, with `## Follow-ups`): continue on the same branch, and repeat from step 3.
+5. **Hand over.** Set the plan to `status: review`, with what the owner should try left as unticked `- [ ] Check: …` tasks. Commit that change, push, and run `gh pr create` using the template. Fill in the plan, what it does, what to check, and the findings. CI runs the same gate.
+6. **Acceptance.** The owner reviews it on the Reviews tab, which writes to the plan file on the branch.
+   - **Approve** (`status: done`, checks ticked): commit the plan file ("Approved on the board") and push. Then merge with `gh pr merge --squash --delete-branch`, and run `git switch main && git pull`. Main then carries the approval.
+   - **Follow up** (back to `todo`, with `## Follow-ups`): commit the plan file, continue on the same branch, and repeat from step 3.
 7. **Report** in a few lines: what shipped, the checks you ran and their results, findings fixed and deferred, and any risks left.
 
 Never merge without the owner's approval on the board. Never skip the gate or the hooks.

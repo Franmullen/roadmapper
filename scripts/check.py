@@ -17,7 +17,8 @@ ROOT = Path(__file__).resolve().parent.parent
 PACKAGE = ROOT / 'packages' / 'roadmapper'
 JS = PACKAGE / 'js'
 
-IMPORT = re.compile(r"""^\s*import\b[^'"]*['"]([^'"]+)['"]""", re.MULTILINE)
+# Static imports, re-exports (export ... from) and dynamic import('...').
+IMPORT = re.compile(r"""^\s*(?:import|export)\b[^'";]*?\bfrom\s*['"]([^'"]+)['"]|^\s*import\s*['"]([^'"]+)['"]|\bimport\(\s*['"]([^'"]+)['"]""", re.MULTILINE)
 
 # The architecture, as rules on what each module may import and use. See docs/architecture.md.
 PURE = {'model.js', 'agents.js'}                 # pure logic: tested in Node, no browser or Celbridge
@@ -49,11 +50,65 @@ def syntax():
     return ok
 
 
+# A `/` starts a regex literal (not a division) after one of these characters or keywords.
+REGEX_BEFORE = set('(,=:[!&|?{};+-*%<>~^')
+REGEX_KEYWORDS = ('return', 'typeof', 'case', 'do', 'else', 'in', 'of', 'new', 'delete', 'void', 'throw', 'yield', 'await')
+
+
 def code_only(text):
-    """The source without comments and strings, so rules only look at code."""
-    text = re.sub(r'/\*.*?\*/', '', text, flags=re.DOTALL)
-    text = re.sub(r'//[^\n]*', '', text)
-    return re.sub(r'`(?:\\.|[^`\\])*`|\'(?:\\.|[^\'\\])*\'|"(?:\\.|[^"\\])*"', "''", text)
+    """The source without comments, strings and regex literals, so rules only look at code.
+
+    One left-to-right pass, so a quote inside a regex or a // inside a string can't swallow code.
+    Newlines are kept, so the result has as many lines as the source (architecture() checks this).
+    Template literal ${...} parts are blanked too, which is fine for these rules.
+    """
+    out = []
+    i, n = 0, len(text)
+    last = ''   # the last code character that wasn't whitespace
+    while i < n:
+        ch = text[i]
+        nxt = text[i + 1] if i + 1 < n else ''
+        if ch == '/' and nxt == '/':
+            end = text.find('\n', i)
+            i = n if end < 0 else end
+            continue
+        if ch == '/' and nxt == '*':
+            end = text.find('*/', i + 2)
+            end = n if end < 0 else end + 2
+            out.append('\n' * text.count('\n', i, end))
+            i = end
+            continue
+        word = re.search(r'(\w+)\s*$', ''.join(out[-20:]))
+        starts_regex = ch == '/' and (last in REGEX_BEFORE or last == '' or (word and word.group(1) in REGEX_KEYWORDS and last.isalpha()))
+        if ch in '\'"`' or starts_regex:
+            j = i + 1
+            in_class = False
+            while j < n:
+                c = text[j]
+                if c == '\\':
+                    j += 2
+                    continue
+                if ch == '/':
+                    if c == '[':
+                        in_class = True
+                    elif c == ']':
+                        in_class = False
+                    elif c == '/' and not in_class:
+                        break
+                    elif c == '\n':
+                        break
+                elif c == ch or (c == '\n' and ch != '`'):
+                    break
+                j += 1
+            out.append("''" + '\n' * text.count('\n', i, j))
+            i = j + 1
+            last = "'"
+            continue
+        out.append(ch)
+        if not ch.isspace():
+            last = ch
+        i += 1
+    return ''.join(out)
 
 
 def architecture():
@@ -61,8 +116,11 @@ def architecture():
     for path in js_files():
         rel = path.relative_to(JS).as_posix()
         source = path.read_text(encoding='utf-8')
-        imports = IMPORT.findall(source)
+        imports = [next(filter(None, groups)) for groups in IMPORT.findall(source)]
         code = code_only(source)
+        if code.count('\n') != source.count('\n'):
+            problems.append(f'{rel}: the rule checker could not parse this file; fix scripts/check.py code_only()')
+            continue
 
         if rel in PURE:
             extra = set(imports) - PURE_IMPORTS[rel]
@@ -81,10 +139,15 @@ def architecture():
             if rel.startswith('views/') and target == 'actions.js':
                 problems.append(f'{rel} imports actions.js; views act through ctx')
 
-    # Every view in the toolbar list has a stylesheet.
-    for view in re.findall(r"^import (\w+) from './\w+\.js';", (JS / 'views' / 'index.js').read_text(encoding='utf-8'), re.MULTILINE):
-        if not (PACKAGE / 'css' / 'views' / f'{view}.css').exists():
-            problems.append(f'views/{view}.js has no css/views/{view}.css')
+    # Every view has a stylesheet: main.js loads css/views/<id>.css, and each view's id is its file name.
+    for path in sorted((JS / 'views').glob('*.js')):
+        if path.name == 'index.js':
+            continue
+        if not (PACKAGE / 'css' / 'views' / f'{path.stem}.css').exists():
+            problems.append(f'views/{path.name} has no css/views/{path.stem}.css')
+        view_id = re.search(r"\bid:\s*'([^']+)'", path.read_text(encoding='utf-8'))
+        if view_id and view_id.group(1) != path.stem:
+            problems.append(f'views/{path.name} has id {view_id.group(1)!r}; it must match the file name')
 
     for problem in problems:
         print(f'  {problem}')
