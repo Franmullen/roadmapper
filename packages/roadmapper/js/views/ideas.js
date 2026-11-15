@@ -14,9 +14,9 @@ const isQuestion = idea => idea.notes.length > 0 && /^question:/i.test(idea.note
 // A target picker: "Agent decides", what exists, or a new one typed in.
 function targetSelect(ctx, kind, label, choices) {
     const select = el('select', 'idea-target');
-    select.title = `${label} for the next ideas`;
+    select.title = `${label} for new ideas`;
     if (target[kind] && !choices.some(([value]) => value === target[kind])) choices = [...choices, [target[kind], `${target[kind]} (new)`]];
-    for (const [value, text] of [['', `${label}: agent decides`], ...choices, [NEW, `New ${label.toLowerCase()}…`]]) {
+    for (const [value, text] of [['', `Any ${label.toLowerCase()}`], ...choices, [NEW, `New ${label.toLowerCase()}…`]]) {
         const option = el('option', '', value && value !== NEW ? `${label}: ${text}` : text);
         option.value = value;
         option.selected = value === target[kind];
@@ -40,7 +40,7 @@ function capture(ctx, project) {
     const box = el('div', 'idea-capture write-only');
     const input = el('input', 'idea-input');
     input.type = 'text';
-    input.placeholder = 'An idea, then Enter (paste a list to add several)';
+    input.placeholder = 'New idea…';
     input.spellcheck = true;
     input.dataset.keepFocus = 'ideas';
     const save = items => {
@@ -80,11 +80,11 @@ function ideaRow(ctx, idea, project) {
     }
     if (idea.lane) line.appendChild(el('span', 'lane-tag', idea.lane));
     if (asked) {
-        const reply = button('idea-reply write-only', [icon('reply'), ' Reply'], null, 'Answer the agent');
+        const reply = button('idea-reply write-only', [icon('reply'), ' Reply'], null, 'Answer');
         reply.addEventListener('click', () => inlinePrompt(reply, 'Your answer, then Enter', answer => ctx.replyToIdea(idea.text, answer)));
         line.appendChild(reply);
     }
-    line.appendChild(button('idea-remove write-only', icon('x-lg'), () => ctx.deleteIdea(idea.text), 'Remove this idea'));
+    line.appendChild(button('idea-remove write-only', icon('x-lg'), () => ctx.deleteIdea(idea.text), 'Remove'));
     row.appendChild(line);
     for (const note of idea.notes) {
         const kind = /^question:/i.test(note) ? 'question' : /^answer:/i.test(note) ? 'answer' : 'note';
@@ -111,7 +111,7 @@ export default {
         const { ideas } = project;
         const page = el('div', 'desk');
         page.appendChild(el('p', 'desk-hint',
-            'Jot ideas down as they come. Then ask the agent to "process the ideas": it plans each one into a milestone, existing or new, and asks about any it can\'t place.'));
+            'You jot ideas. Ask the agent to "process the ideas" and it bakes them into the roadmap.'));
         page.appendChild(capture(ctx, project));
 
         if (ideas.open.length) {
@@ -119,7 +119,7 @@ export default {
             for (const idea of ideas.open) list.appendChild(ideaRow(ctx, idea, project));
             page.appendChild(list);
         } else {
-            page.appendChild(el('p', 'empty', 'No ideas waiting.'));
+            page.appendChild(el('p', 'empty', 'No ideas yet.'));
         }
         if (ideas.processed.length) {
             const done = el('details', 'desk-processed');
@@ -130,7 +130,7 @@ export default {
             page.appendChild(done);
         }
         if (ideas.exists) {
-            page.appendChild(button('folder-link', [icon('file-earmark-text'), ` ${ideas.resource}`], () => ctx.open(ideas.resource), 'Open the ideas file'));
+            page.appendChild(button('folder-link', [icon('file-earmark-text'), ` ${ideas.resource}`], () => ctx.open(ideas.resource), 'Open file'));
         }
         container.appendChild(page);
     },

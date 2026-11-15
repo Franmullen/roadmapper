@@ -14,7 +14,7 @@ const MAX_LANE_TAGS = 4;
 function planRow(ctx, plan) {
     const row = el('li', 'stage-plan');
     row.tabIndex = 0;
-    row.title = plan.status === 'review' ? `Open ${plan.path}\n\nIn review. ${reviewChecks(plan)}` : `Open ${plan.path}`;
+    row.title = plan.status === 'review' ? `Open ${plan.path}\n\n${reviewChecks(plan)}` : `Open ${plan.path}`;
     row.append(statusDot(plan.status), el('span', 'stage-plan-title', plan.title));
     const deps = dependencyChip(plan);
     if (deps) row.appendChild(deps);
@@ -51,7 +51,7 @@ function stage(ctx, milestone) {
     const open = () => ctx.showMilestone(milestone.folder);
 
     const head = el('div', 'stage-head');
-    head.appendChild(button('stage-title', milestone.title, open, `Show ${milestone.title} in detail`));
+    head.appendChild(button('stage-title', milestone.title, open, `Open ${milestone.title}`));
     if (isComplete(milestone)) head.appendChild(icon('check-circle-fill'));
     card.appendChild(head);
     card.appendChild(el('div', 'stage-folder', milestone.unsorted ? `${milestone.folder}/` : milestone.name));

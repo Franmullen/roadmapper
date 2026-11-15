@@ -192,11 +192,11 @@ export function createActions(client, { notify }) {
         const updated = upsertSection(existing, section);
         const action = { resource: 'project:CLAUDE.md', label: 'Open CLAUDE.md' };
         if (updated === existing) {
-            await notify('info', 'The Roadmapper guide in CLAUDE.md is up to date.', action);
+            await notify('info', 'Agent guide is up to date.', action);
             return;
         }
         if (await attempt('Could not write CLAUDE.md.', () => call('file.write', 'CLAUDE.md', updated))) {
-            await notify('info', existing ? 'Updated the Roadmapper guide in CLAUDE.md.' : 'Created CLAUDE.md with a guide for AI agents.', action);
+            await notify('info', existing ? 'Updated the agent guide.' : 'Added the agent guide to CLAUDE.md.', action);
         }
     }
 

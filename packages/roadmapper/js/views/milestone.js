@@ -14,7 +14,7 @@ const NEW_LANE = '\u0000new';
 // A plan's lane (swimlane on the Map): pick one of the lanes in use, none, or start a new one.
 function laneSelect(ctx, plan, lanes) {
     const select = el('select', plan.lane ? 'lane-select' : 'lane-select no-lane');
-    select.title = 'Lane: the swimlane this plan sits in on the Map';
+    select.title = 'Lane';
     select.disabled = !ctx.writable;
     const choices = [['', 'No lane'], ...lanes.map(lane => [lane, lane]), [NEW_LANE, 'New lane…']];
     for (const [value, label] of choices) {

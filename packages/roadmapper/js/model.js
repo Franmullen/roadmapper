@@ -473,8 +473,7 @@ export function ideasTemplate() {
     return [
         '# Ideas',
         '',
-        'Ideas for this project. Ask an agent to "process the ideas": it turns each unticked one into plans,',
-        'then ticks it and notes where it went.',
+        'Ideas for the agent to bake into the roadmap. Ask it to "process the ideas".',
         '',
     ].join('\n');
 }

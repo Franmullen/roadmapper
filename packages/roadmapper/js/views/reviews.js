@@ -19,7 +19,7 @@ function reviewItem(ctx, plan, milestones, byResource) {
     head.appendChild(button('desk-plan-title', plan.title, () => ctx.open(plan.resource), `Open ${plan.resource}`));
     const meta = el('div', 'desk-plan-meta');
     meta.appendChild(button('folder-link', milestones.get(plan.milestone) ?? plan.milestone,
-        () => ctx.showMilestone(plan.milestone), 'Show this milestone'));
+        () => ctx.showMilestone(plan.milestone), 'Open milestone'));
     if (plan.lane) meta.appendChild(el('span', 'lane-tag', plan.lane));
     if (plan.owner) meta.appendChild(ownerTag(plan));
     head.appendChild(meta);
@@ -33,7 +33,7 @@ function reviewItem(ctx, plan, milestones, byResource) {
     }
     const unblocks = unblockedBy(plan, byResource);
     if (unblocks.length) {
-        item.appendChild(el('div', 'desk-unblocks', `Approving lets the agent start: ${unblocks.map(other => other.title).join(', ')}`));
+        item.appendChild(el('div', 'desk-unblocks', `Unblocks: ${unblocks.map(other => other.title).join(', ')}`));
     }
     item.appendChild(reviewControls(ctx, plan));
     return item;
@@ -57,9 +57,9 @@ export default {
 
         const page = el('div', 'desk');
         page.appendChild(el('p', 'desk-hint',
-            'Approve what is finished, or send it back with what still needs doing. Either way the agent can carry on.'));
+            'Approve, or send back with follow-ups.'));
         if (!reviews.length) {
-            page.appendChild(el('p', 'empty', 'Nothing is waiting for review.'));
+            page.appendChild(el('p', 'empty', 'All reviewed.'));
         } else {
             const list = el('ul', 'desk-list');
             for (const plan of reviews) list.appendChild(reviewItem(ctx, plan, milestones, byResource));

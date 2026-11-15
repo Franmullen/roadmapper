@@ -108,7 +108,7 @@ export function hiddenDoneNote(milestone) {
     if (!milestone.hiddenDone) return null;
     const note = el('span', 'hidden-done', ` ${milestone.hiddenDone} done`);
     note.prepend(icon('check2'));
-    note.title = `${milestone.hiddenDone} finished plan${milestone.hiddenDone === 1 ? ' is' : 's are'} hidden. Show all to see them.`;
+    note.title = `${milestone.hiddenDone} done, hidden`;
     return note;
 }
 
@@ -121,7 +121,7 @@ export function milestoneHeader(ctx, milestone, { detail = false } = {}) {
         titleRow.appendChild(el('h1', '', milestone.title));
     } else {
         titleRow.appendChild(button('milestone-title', milestone.title,
-            () => ctx.showMilestone(milestone.folder), 'Show this milestone in detail'));
+            () => ctx.showMilestone(milestone.folder), 'Open milestone'));
     }
     const total = planTotal(milestone);
     titleRow.appendChild(el('span', 'count', total ? `${milestone.counts.done}/${total}` : '0'));
@@ -129,7 +129,7 @@ export function milestoneHeader(ctx, milestone, { detail = false } = {}) {
 
     const metaRow = el('div', 'meta-row');
     metaRow.appendChild(button('folder-link', milestone.unsorted ? `${milestone.folder}/` : milestone.name,
-        () => ctx.reveal(milestone.folder), 'Show this folder in the Explorer'));
+        () => ctx.reveal(milestone.folder), 'Show in Explorer'));
     const due = dueChip(milestone, ctx.today);
     if (due) metaRow.appendChild(due);
     const finished = hiddenDoneNote(milestone);
@@ -147,7 +147,7 @@ export function milestoneHeader(ctx, milestone, { detail = false } = {}) {
 export function ownerTag(plan) {
     const tag = el('span', 'owner-tag', plan.owner);
     tag.prepend(icon('person'), ' ');
-    tag.title = `${plan.owner} is working on this`;
+    tag.title = `Owner: ${plan.owner}`;
     return tag;
 }
 
@@ -155,7 +155,7 @@ export function ownerTag(plan) {
 
 // What is left to check on a plan in review: its unticked tasks.
 export function reviewChecks(plan) {
-    return plan.openTasks.length ? ['To check:', ...plan.openTasks.map(task => `- ${task}`)].join('\n') : 'Nothing left unticked.';
+    return plan.openTasks.length ? ['To check:', ...plan.openTasks.map(task => `- ${task}`)].join('\n') : 'Nothing to check.';
 }
 
 // Approve or send back a plan in review. Compact shows icons only. Clicks here never open or drag the plan.
@@ -166,9 +166,9 @@ export function reviewControls(ctx, plan, { compact = false } = {}) {
 
     const label = text => (compact ? [] : [` ${text}`]);
     const approve = button('review-approve', [icon('check2'), ...label('Approve')], () => ctx.approvePlan(plan.resource),
-        `Approve: mark it done and tick its remaining tasks.\n\n${reviewChecks(plan)}`);
+        `Mark done\n\n${reviewChecks(plan)}`);
     const sendBack = button('review-send-back', [icon('arrow-return-left'), ...label('Follow up')], null,
-        'Send it back with follow-ups. They become tasks under "## Follow-ups" and the plan returns to To do, ready for an agent.');
+        'Send back with follow-ups');
     // On the Road there is no room to write, so Follow up goes to the Reviews tab.
     sendBack.addEventListener('click', () => (compact ? ctx.showView('reviews') : openFollowUpBox(ctx, plan, controls)));
     controls.append(approve, sendBack);
@@ -181,8 +181,8 @@ function openFollowUpBox(ctx, plan, controls) {
     const box = el('div', 'follow-up-box');
     const text = el('textarea', 'inline-input follow-up-text');
     text.rows = 4;
-    text.placeholder = 'What still needs doing? One follow-up per line.';
-    const hint = el('span', 'follow-up-hint', 'Ctrl+Enter to send back');
+    text.placeholder = "What's left? One per line.";
+    const hint = el('span', 'follow-up-hint', 'Ctrl+Enter');
     const close = () => {
         box.replaceWith(controls);
         document.dispatchEvent(new CustomEvent('rm-prompt-closed'));
@@ -195,7 +195,7 @@ function openFollowUpBox(ctx, plan, controls) {
     };
     const actions = el('div', 'follow-up-actions');
     actions.append(
-        button('review-send-back', [icon('arrow-return-left'), ' Send back'], send, 'Send it back to To do with these follow-ups'),
+        button('review-send-back', [icon('arrow-return-left'), ' Send back'], send, 'Send back'),
         button('follow-up-cancel', 'Cancel', close),
         hint);
     box.append(text, actions);
@@ -219,7 +219,7 @@ export function followUpChip(plan) {
     if (plan.status !== 'todo' || !plan.followUps.length) return null;
     const chip = el('span', 'follow-up-chip');
     chip.append(icon('arrow-return-left'), ` ${plan.followUps.length} follow-up${plan.followUps.length === 1 ? '' : 's'}`);
-    chip.title = ['Sent back from review:', ...plan.followUps.map(task => `- ${task}`)].join('\n');
+    chip.title = ['Follow-ups:', ...plan.followUps.map(task => `- ${task}`)].join('\n');
     return chip;
 }
 

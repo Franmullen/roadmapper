@@ -383,7 +383,7 @@ test('ideas are listed open or planned, with their targets, and are not a plan',
 
 test('adding and removing ideas', () => {
     const started = addIdeas('', ['  Dark   mode ', '']);
-    assert.match(started, /^# Ideas\n\n.*\n.*\n\n- \[ \] Dark mode\n$/);
+    assert.match(started, /^# Ideas\n\n.*\n\n- \[ \] Dark mode\n$/);
     const targeted = addIdeas(started, ['Themes'], { milestone: 'v0.8 Polish', lane: 'ui' });
     assert.match(targeted, /- \[ \] Dark mode\n- \[ \] Themes\n  - Milestone: v0\.8 Polish\n  - Lane: ui\n$/);
     const more = addIdeas(started, ['Export', 'Search']);

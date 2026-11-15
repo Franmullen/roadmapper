@@ -150,7 +150,7 @@ function applyContent(content, { firstLoad = false } = {}) {
     } catch (e) {
         console.warn('[Roadmapper] Could not parse the .roadmap file:', e);
         config = parseConfig('');
-        showMessage('This .roadmap file is not valid JSON, so the default settings are shown.');
+        showMessage('Invalid .roadmap file. Using defaults.');
     }
     if (firstLoad && !uiRestored) {
         if (isView(config.view)) ui.view = viewId(config.view);
@@ -228,18 +228,18 @@ async function scan() {
         project = loaded;
         rootMissing = false;
         actions.writeBrief(project, documentResource, today());
-        showMessage(project.milestones.length === 0 ? `"${config.root}" is empty. Add a milestone to start planning.` : '');
+        showMessage(project.milestones.length === 0 ? `"${config.root}" is empty. Add a milestone.` : '');
     } catch (e) {
         if (token !== scanToken) return;
         if (e instanceof RootMissingError) {
             project = null;
             rootMissing = true;
             ui.milestone = null;
-            showMessage(`The folder "${config.root}" does not exist yet.`, writable);
+            showMessage(`"${config.root}" doesn't exist.`, writable);
         } else {
             // Keep showing the last good project; the next file change or Refresh tries again.
             console.error('[Roadmapper] Could not read the plans:', e);
-            showMessage(`Could not read the plans in "${config.root}". Press Refresh to try again.`);
+            showMessage(`Couldn't read "${config.root}". Try Refresh.`);
         }
     }
     render();
@@ -338,11 +338,11 @@ function renderToolbar(view) {
             hidden.later && `${hidden.later} later milestone${hidden.later === 1 ? '' : 's'}`,
             hidden.plans && `${hidden.plans} plan${hidden.plans === 1 ? '' : 's'}`,
         ].filter(Boolean);
-        showAllButton.title = parts.length ? `Showing work now and next. Hidden: ${parts.join(', ')}.` : 'Nothing is hidden';
+        showAllButton.title = parts.length ? `Hidden: ${parts.join(', ')}` : 'Nothing hidden';
         hiddenBadge.textContent = String(hidden.plans);
         hiddenBadge.hidden = !hidden.plans;
     } else {
-        showAllButton.title = 'Back to work now and next';
+        showAllButton.title = 'Show current work only';
         hiddenBadge.hidden = true;
     }
 

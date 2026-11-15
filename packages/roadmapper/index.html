@@ -11,7 +11,7 @@
 </head>
 <body>
     <header id="toolbar">
-        <label class="root-field" title="The folder whose subfolders are the milestones. Pick one of the project's folders, or type a path.">
+        <label class="root-field" title="Roadmap folder">
             <i class="bi bi-folder2"></i>
             <input type="text" id="root-input" list="root-folders" spellcheck="false" autocomplete="off" placeholder="plans">
             <datalist id="root-folders"></datalist>
@@ -20,14 +20,14 @@
         <span id="summary"></span>
         <span class="spacer"></span>
         <button type="button" id="show-all" class="toolbar-button" aria-pressed="false"
-                title="Show finished work and later milestones too">
+                title="Show everything">
             <i class="bi bi-arrows-expand"></i><span>Show all</span><span class="toolbar-badge" hidden></span>
         </button>
         <button type="button" id="add-milestone" class="toolbar-button write-only" title="Add a milestone folder">
             <i class="bi bi-plus-lg"></i><span>Milestone</span>
         </button>
         <button type="button" id="agent-guide" class="toolbar-button write-only"
-                title="Write a guide to this roadmap for AI agents into the project's CLAUDE.md">
+                title="Write the agent guide to CLAUDE.md">
             <i class="bi bi-journal-text"></i><span>Agent guide</span>
         </button>
         <button type="button" id="refresh" class="cel-icon-button" title="Refresh" aria-label="Refresh">

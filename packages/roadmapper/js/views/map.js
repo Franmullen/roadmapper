@@ -31,7 +31,7 @@ function milestoneHead(ctx, milestone) {
     const head = el('div', milestone.unsorted ? 'map-head unsorted' : 'map-head');
     const title = el('div', 'map-head-title');
     title.append(
-        button('milestone-title', milestone.title, () => ctx.showMilestone(milestone.folder), `Show ${milestone.title} in detail`),
+        button('milestone-title', milestone.title, () => ctx.showMilestone(milestone.folder), `Open ${milestone.title}`),
         el('span', 'count', `${milestone.counts.done}/${planTotal(milestone)}`));
     head.appendChild(title);
     const due = dueChip(milestone, ctx.today);
