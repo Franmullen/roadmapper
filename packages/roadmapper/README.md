@@ -1,6 +1,6 @@
 # Roadmapper
 
-A Celbridge package for planning work as milestones. Each milestone is a folder and each plan is a Markdown file inside it. Roadmapper shows them as a board you can organise.
+A Celbridge package for planning work as milestones. Each milestone is a folder and each plan is a Markdown file inside it. Roadmapper shows them as a road and a map you can organise.
 
 There's no separate database: **your folders and Markdown files are the plan**. Every change on the board is written back to those files, and every change to the files, whether by you, git or an AI agent, shows up on the board straight away.
 
@@ -15,7 +15,7 @@ There's no separate database: **your folders and Markdown files are the plan**. 
    }
    ```
 
-   Optional settings: `"lanes": ["core", "ui"]` sets the lane order (**+ Lane** on the board adds to it). `"view": "road"`, `"board"` or `"map"` and `"showLanes": true` choose how the board first opens; after that, each editor remembers its own view without changing the file.
+   Optional settings: `"lanes": ["core", "ui"]` sets the lane order on the Map (lanes not listed follow alphabetically). `"view": "road"` or `"map"` chooses how the board first opens; after that, each editor remembers its own view without changing the file.
 
 3. Open it. If the folder is empty, use **+ Milestone** to start.
 
@@ -35,10 +35,10 @@ plans/
 
 | On the board | In your files |
 |---|---|
-| Milestone column | A subfolder of the root, ordered by name (`01-`, `02-`… set the order and are hidden from the title) |
+| Milestone | A subfolder of the root, ordered by name (`01-`, `02-`… set the order and are hidden from the title) |
 | Milestone title, description, due date | The folder's `README.md`: its `# heading`, first paragraph and `due: YYYY-MM-DD` front matter |
-| Plan card | Any other `.md` file in the milestone folder |
-| Card title | `title:` front matter, else the first `# heading`, else the file name |
+| Plan | Any other `.md` file in the milestone folder |
+| Plan title | `title:` front matter, else the first `# heading`, else the file name |
 | Status | `status:` front matter: `todo`, `doing`, `review`, `done` or `blocked`. Without it, the checkboxes decide: none ticked is To do, some is Doing, all is Done. |
 | Lane | `lane:` front matter |
 | Owner | `owner:` front matter: who is working on it, a person or an agent |
@@ -52,12 +52,12 @@ A plan file looks like this:
 status: doing
 lane: ui
 ---
-# Drag cards between lanes
+# Search
 
 ## Tasks
 
-- [x] Drop target per lane cell
-- [ ] Write the lane into front matter
+- [x] Index the records
+- [ ] Search box with results
 ```
 
 ### Dependencies
@@ -72,18 +72,17 @@ depends:
   - 02-beta/api
 ```
 
-Cards show what a plan is waiting on. A dependency is flagged in red when no plan has that name, when more than one does, or when it is scheduled in a later milestone than the plan that needs it.
+Plans show what they are waiting on. A dependency is flagged in red when no plan has that name, when more than one does, or when it is scheduled in a later milestone than the plan that needs it.
 
 ## Views
 
 - **Road** (the default): the milestones as stops along a road, in order. Each stop shows its due date, plans done, a bar split by status, the lanes involved and its plans. A **Today** marker sits between the milestones due before and after today. Overdue stops turn red and finished ones show a tick. Click a plan to open its file, or drag it to another stop to move it there. Click a stop's title to open that milestone.
-- **Board**: a column per milestone with its plan cards, or the lanes grid when **Lanes** is on.
 - **Map**: the whole project at once. Lanes are bands, milestones are columns and each plan is a node, with arrows from each plan to the plans that depend on it. Hover a plan to pick out its links; click it to open it. Zoomed out, plans become coloured blocks; zoom in for titles and task counts.
 - **Milestone**: one milestone's plans grouped by status, with links to each plan's dependencies. Use **Back** or Escape to return.
 
 **Focus:** by default the views show work now and next: the milestones from the first unfinished one through the one after the last with work started, without their finished plans. A "✓ N done" note stands in for finished plans, and on the Road, collapsed stretches stand in for hidden milestones. **Show all** on the toolbar shows everything; the editor remembers which you chose.
 
-Road, Board and Map pan and zoom, so any size of project fits on screen:
+Road and Map pan and zoom, so any size of project fits on screen:
 
 - Ctrl+wheel (or pinch) zooms at the pointer; the wheel and dragging the background pan.
 - The controls in the corner (or the keys `-`, `+` and `0`) zoom out, zoom in and fit to the screen. Click the percentage to return to 100%.
@@ -91,18 +90,19 @@ Road, Board and Map pan and zoom, so any size of project fits on screen:
 
 ## Using the board
 
-- **Click a card** to open its plan.
-- **Drag a card** to another milestone to move its file into that folder. In the lanes view, dragging to another row also changes its `lane:`.
-- **+ Add plan** in a column (or a lane cell) creates a plan file from a title.
+Roadmapper is for keeping the big picture while agents do the detailed work: you read the Road and the Map, drill into a milestone to review and plan, and ask an agent to make the changes.
+
+- **Click a plan** to open its file.
+- **Drag a plan** on the Road to another milestone to move its file into that folder.
+- **+ Add plan** in a milestone's view creates a plan file from a title.
 - **+ Milestone** creates the next numbered folder with a README.
-- **Lanes** switches the Board to a grid of lanes (rows) by milestones (columns), for planning parallel work. **+ Lane** adds a lane, and the lane order is saved in the `.roadmap` file.
 - **Click a milestone's title** to drill in: its description, due date and progress, and its plans grouped by status. Change a plan's status from its dropdown, or drag it to another status group.
 - **Click a folder name** to show that folder in the Explorer.
 - A due date turns red once it has passed and the milestone still has work left.
 
 ### Reviewing work
 
-A plan in `review` shows two buttons on the Road, the Board and the milestone view. The milestone view also lists what is left to check: the plan's unticked tasks.
+A plan in `review` shows two buttons on the Road and in the milestone view. The milestone view also lists what is left to check: the plan's unticked tasks.
 
 - **Approve** sets `status: done` and ticks the remaining tasks.
 - **Follow up** asks for what still needs doing (separate several with `;`). Each one becomes an unticked task under a `## Follow-ups` heading in the plan, and the plan goes back to `todo`. The board marks it "N follow-ups", and the agent brief lists it first, so an agent picks it up before new work.

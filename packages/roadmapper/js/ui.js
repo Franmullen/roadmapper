@@ -225,45 +225,6 @@ export function dependencyLinks(ctx, plan) {
     return list;
 }
 
-// A plan card: status edge and chip, title, lane, file and task progress. Click opens; drag moves.
-export function planCard(ctx, plan, { showLane = true } = {}) {
-    const item = el('li', `card status-edge-${plan.status}`);
-    item.tabIndex = 0;
-    item.title = `Open ${plan.resource}`;
-
-    item.appendChild(el('div', 'card-title', plan.title));
-
-    const tags = el('div', 'card-tags');
-    tags.appendChild(statusChip(plan.status));
-    if (showLane && plan.lane) tags.appendChild(el('span', 'lane-tag', plan.lane));
-    if (plan.owner) tags.appendChild(ownerTag(plan));
-    const deps = dependencyChip(plan);
-    if (deps) tags.appendChild(deps);
-    const followUps = followUpChip(plan);
-    if (followUps) tags.appendChild(followUps);
-    if (plan.total > 0) {
-        tags.appendChild(el('span', plan.done === plan.total ? 'card-tasks complete' : 'card-tasks', `${plan.done}/${plan.total}`));
-    }
-    item.appendChild(tags);
-    const review = reviewControls(ctx, plan);
-    if (review) item.appendChild(review);
-
-    item.appendChild(el('div', 'card-file', plan.path));
-    if (plan.total > 0) {
-        item.appendChild(progressBar(plan.done, plan.total, `${plan.done} of ${plan.total} tasks done`));
-    }
-
-    item.addEventListener('click', () => ctx.open(plan.resource));
-    item.addEventListener('keydown', event => {
-        if (event.key === 'Enter') {
-            event.preventDefault();
-            ctx.open(plan.resource);
-        }
-    });
-    ctx.drag.makeDraggable(item, dragPayload(plan));
-    return item;
-}
-
 export function dragPayload(plan) {
     return { resource: plan.resource, from: plan.milestone, lane: plan.lane, status: plan.status };
 }

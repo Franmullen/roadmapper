@@ -299,45 +299,8 @@ body.read-only .write-only {
     gap: 6px;
 }
 
-.card {
-    padding: 8px 10px 8px 12px;
-    background: var(--cel-content-bg);
-    border: 1px solid var(--cel-divider);
-    border-left: 3px solid var(--rm-todo);
-    border-radius: var(--cel-radius-control);
-    cursor: pointer;
-}
-
-.card.status-edge-doing { border-left-color: var(--rm-doing); }
-.card.status-edge-review { border-left-color: var(--rm-review); }
-.card.status-edge-done { border-left-color: var(--rm-done); }
-.card.status-edge-blocked { border-left-color: var(--rm-blocked); }
-
-.card:hover,
-.card:focus-visible {
-    border-top-color: var(--cel-accent);
-    border-right-color: var(--cel-accent);
-    border-bottom-color: var(--cel-accent);
-    outline: none;
-}
-
-.card.dragging,
 .detail-row.dragging {
     opacity: 0.4;
-}
-
-.card-title {
-    font-weight: var(--cel-font-weight-strong);
-    overflow-wrap: anywhere;
-}
-
-.card-tags {
-    display: flex;
-    flex-wrap: wrap;
-    align-items: center;
-    gap: 4px 6px;
-    margin-top: 6px;
-    font-size: var(--cel-font-size-small);
 }
 
 .card-file {
@@ -357,10 +320,6 @@ body.read-only .write-only {
 
 .card-tasks.complete {
     color: var(--rm-done);
-}
-
-.card > .progress {
-    margin-top: 6px;
 }
 
 .status-chip {

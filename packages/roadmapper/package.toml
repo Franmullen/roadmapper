@@ -1,4 +1,4 @@
-# Roadmapper: plan milestones as folders of Markdown files, and see them as a road, a board and a map.
+# Roadmapper: plan milestones as folders of Markdown files, and see them as a road and a map.
 
 [package]
 name = "roadmapper"

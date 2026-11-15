@@ -16,13 +16,13 @@ const folder = (name, children = []) => ({ name, type: 'folder', children });
 // --- Settings ---
 
 test('config defaults, round-trips, and keeps only what is set', () => {
-    assert.deepEqual(parseConfig(''), { root: 'plans', lanes: [], showLanes: false, view: null });
+    assert.deepEqual(parseConfig(''), { root: 'plans', lanes: [], view: null });
     assert.equal(parseConfig('{"view":"board"}').view, 'board');
     assert.equal(parseConfig('{"view":" "}').view, null);
     assert.deepEqual(parseConfig('{"root":"project:docs/milestones/"}').root, 'docs/milestones');
-    const config = { root: 'a/b', lanes: ['core', 'ui'], showLanes: true, view: 'board' };
+    const config = { root: 'a/b', lanes: ['core', 'ui'], view: 'map' };
     assert.deepEqual(parseConfig(serializeConfig(config)), config);
-    assert.equal(serializeConfig({ root: 'plans', lanes: [], showLanes: false, view: null }), '{\n  "root": "plans"\n}\n');
+    assert.equal(serializeConfig({ root: 'plans', lanes: [], view: null }), '{\n  "root": "plans"\n}\n');
     assert.deepEqual(parseConfig('{"lanes":[" ui ","ui","",3]}').lanes, ['ui']);
     assert.throws(() => parseConfig('{not json'));
 });

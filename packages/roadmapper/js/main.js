@@ -29,8 +29,6 @@ const summaryEl = document.getElementById('summary');
 const viewSwitch = document.getElementById('view-switch');
 const refreshButton = document.getElementById('refresh');
 const addMilestoneButton = document.getElementById('add-milestone');
-const addLaneButton = document.getElementById('add-lane');
-const lanesButton = document.getElementById('toggle-lanes');
 const showAllButton = document.getElementById('show-all');
 const hiddenBadge = showAllButton.querySelector('.toolbar-badge');
 const agentGuideButton = document.getElementById('agent-guide');
@@ -42,7 +40,7 @@ const createRootButton = document.getElementById('create-root');
 // defaults and is then kept with the editor state, not written to the file.
 let config = parseConfig('');
 // By default the views focus on work now and next (see focusProject); showAll shows everything.
-const ui = { view: VIEW_LIST[0].id, showLanes: false, showAll: false, milestone: null };
+const ui = { view: VIEW_LIST[0].id, showAll: false, milestone: null };
 
 let documentResource = '';
 let writable = true;
@@ -57,7 +55,8 @@ let restoreScrollTop = 0;
 let uiRestored = false;
 
 // Earlier names for views, still accepted in .roadmap files and saved editor state.
-const VIEW_ALIASES = { pipeline: 'road' };
+// Views that were renamed or removed open as the closest one left.
+const VIEW_ALIASES = { pipeline: 'road', board: 'road' };
 const viewId = id => VIEW_ALIASES[id] ?? id;
 const isView = id => VIEW_LIST.some(view => view.id === viewId(id));
 
@@ -123,19 +122,9 @@ const commands = {
         ui.milestone = null;
         render();
     },
-    toggleLanes: () => {
-        ui.showLanes = !ui.showLanes;
-        render();
-    },
     toggleShowAll: () => {
         ui.showAll = !ui.showAll;
         render();
-    },
-    addLane: name => {
-        const lane = name.trim();
-        if (!lane || !project || config.lanes.includes(lane)) return;
-        changeSettings({ lanes: [...new Set([...project.lanes, lane])] });
-        scan();
     },
     createPlan: (folder, lane, title) => act(() => actions.createPlan(project, folder, lane, title)),
     createMilestone: title => act(() => actions.createMilestone(project, config, title, rootMissing), { rewatch: rootMissing }),
@@ -149,7 +138,7 @@ const commands = {
 
 // --- Settings document ---
 
-// The file's view and showLanes only set where the editor opens, so they apply on the first load and
+// The file's view only sets where the editor opens, so they apply on the first load and
 // only when the editor has no saved state of its own.
 function applyContent(content, { firstLoad = false } = {}) {
     try {
@@ -162,7 +151,6 @@ function applyContent(content, { firstLoad = false } = {}) {
     }
     if (firstLoad && !uiRestored) {
         if (isView(config.view)) ui.view = viewId(config.view);
-        ui.showLanes = config.showLanes;
     }
     rootInput.value = config.root;
 }
@@ -295,8 +283,7 @@ function render() {
         boardEl.className = `zoomable view-${view.id}`;
         boardEl.replaceChildren(content, zoomControls.element);
         view.mounted?.(content, shown, ctx);
-        const key = view.id === 'board' && ui.showLanes ? 'board-lanes' : view.id;
-        viewport.attach(content, { key, align: view.fitAlign });
+        viewport.attach(content, { key: view.id, align: view.fitAlign });
     } else {
         // A re-render keeps the scroll position; opening a view (or restoring state) sets it.
         const scrollTop = restoreScrollTop ?? boardEl.scrollTop;
@@ -313,11 +300,6 @@ function renderToolbar(view) {
     for (const element of viewSwitch.children) {
         element.setAttribute('aria-pressed', String(element.dataset.view === ui.view && view !== milestoneView));
     }
-    const onBoard = view.id === 'board';
-    lanesButton.hidden = !onBoard;
-    lanesButton.setAttribute('aria-pressed', String(ui.showLanes));
-    addLaneButton.hidden = !(onBoard && ui.showLanes);
-
     showAllButton.hidden = !project || view === milestoneView;
     showAllButton.setAttribute('aria-pressed', String(ui.showAll));
     if (project && !ui.showAll) {
@@ -392,8 +374,6 @@ rootInput.addEventListener('keydown', event => {
 refreshButton.addEventListener('click', () => scan());
 addMilestoneButton.addEventListener('click', () =>
     inlinePrompt(addMilestoneButton, 'Milestone name, then Enter', commands.createMilestone));
-addLaneButton.addEventListener('click', () => inlinePrompt(addLaneButton, 'Lane name, then Enter', commands.addLane));
-lanesButton.addEventListener('click', commands.toggleLanes);
 showAllButton.addEventListener('click', commands.toggleShowAll);
 agentGuideButton.addEventListener('click', commands.writeAgentGuide);
 createRootButton.addEventListener('click', commands.createRoot);
@@ -451,7 +431,6 @@ try {
 
         onRequestState: () => JSON.stringify({
             view: ui.view,
-            showLanes: ui.showLanes,
             showAll: ui.showAll,
             milestone: ui.milestone,
             zoom: viewport.exportMemory(),
@@ -463,7 +442,6 @@ try {
                 const state = JSON.parse(stateJson);
                 uiRestored = true;
                 if (isView(state?.view)) ui.view = viewId(state.view);
-                if (typeof state?.showLanes === 'boolean') ui.showLanes = state.showLanes;
                 if (typeof state?.showAll === 'boolean') ui.showAll = state.showAll;
                 ui.milestone = typeof state?.milestone === 'string' ? state.milestone : null;
                 viewport.importMemory(state?.zoom);

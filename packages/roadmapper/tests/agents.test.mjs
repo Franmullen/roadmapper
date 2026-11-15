@@ -56,7 +56,7 @@ test('the brief lives in temp:, named after the .roadmap file', () => {
 });
 
 test('agent instructions name the root, lanes, brief and work loop', () => {
-    const text = agentInstructions({ root: 'plans', lanes: ['core', 'ui'], showLanes: true }, 'roadmapper.roadmap');
+    const text = agentInstructions({ root: 'plans', lanes: ['core', 'ui'] }, 'roadmapper.roadmap');
     assert.ok(text.startsWith(AGENT_SECTION_START) && text.endsWith(AGENT_SECTION_END));
     assert.match(text, /`plans\/`/);
     assert.match(text, /`core`, `ui`/);

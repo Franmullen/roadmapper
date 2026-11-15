@@ -4,7 +4,7 @@ lane: ui
 ---
 # Manage lanes from the board
 
-Lanes can be added from the board, but reordering, renaming and removing them still means editing the .roadmap file.
+Lanes come from plans' `lane:` front matter, but reordering, renaming and removing them still means editing the .roadmap file.
 
 ## Tasks
 

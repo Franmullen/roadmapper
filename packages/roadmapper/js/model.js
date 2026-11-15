@@ -30,10 +30,10 @@ const MILESTONE_FILES = ['readme.md', '_milestone.md'];
 
 // --- Settings (.roadmap file) ---
 
-// `view` and `showLanes` only say how the board first opens. Switching on the board does not write them
+// `view` only says how the board first opens. Switching views does not write it
 // back (the editor keeps that in its own state), so using the board does not churn a shared file.
 export function parseConfig(text) {
-    const config = { root: 'plans', lanes: [], showLanes: false, view: null };
+    const config = { root: 'plans', lanes: [], view: null };
     if (!text || !text.trim()) {
         return config;
     }
@@ -44,7 +44,6 @@ export function parseConfig(text) {
     if (Array.isArray(raw.lanes)) {
         config.lanes = [...new Set(raw.lanes.filter(lane => typeof lane === 'string').map(lane => lane.trim()).filter(Boolean))];
     }
-    config.showLanes = raw.showLanes === true;
     if (typeof raw.view === 'string' && raw.view.trim()) config.view = raw.view.trim();
     return config;
 }
@@ -53,7 +52,6 @@ export function serializeConfig(config) {
     const out = { root: config.root };
     if (config.view) out.view = config.view;
     if (config.lanes.length > 0) out.lanes = config.lanes;
-    if (config.showLanes) out.showLanes = true;
     return JSON.stringify(out, null, 2) + '\n';
 }
 

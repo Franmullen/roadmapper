@@ -20,9 +20,8 @@
 // milestone view is not listed because it is opened from the others rather than chosen on the toolbar.
 
 import road from './road.js';
-import board from './board.js';
 import map from './map.js';
 
-export const VIEW_LIST = [road, board, map];
+export const VIEW_LIST = [road, map];
 
 export { default as milestoneView } from './milestone.js';
