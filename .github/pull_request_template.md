@@ -1,4 +1,4 @@
-**Plan:** `plans/…/….md`
+**Plan:** <the plan's name>
 
 **What it does:**
 
