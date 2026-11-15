@@ -1,5 +1,5 @@
 ---
-status: review
+status: done
 lane: core
 ---
 # Dependencies between plans
@@ -12,4 +12,4 @@ A `depends:` list naming other plan files. Flag a plan whose dependency is unfin
 - [x] Flag dependencies that are missing, ambiguous, or scheduled in a later milestone
 - [x] "Waits on" chip on cards and on the Road; links to each dependency in the milestone view
 - [x] The agent guide explains `depends:`
-- [ ] Test: add a dependency by hand and by asking Claude
+- [x] Test: add a dependency by hand and by asking Claude

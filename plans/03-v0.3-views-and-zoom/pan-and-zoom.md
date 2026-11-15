@@ -1,5 +1,5 @@
 ---
-status: review
+status: done
 lane: ui
 ---
 # Pan and zoom
@@ -12,4 +12,4 @@ A shared viewport for any view that draws a canvas.
 - [x] Zoom controls: minus, percentage, plus, fit to screen; keys `+`, `-`, `0`
 - [x] Fits to the screen until you move it, and remembers zoom per view
 - [x] Dragging cards still works when zoomed, and pans at the edges
-- [ ] Test: zoom, pan and drag a card with a real mouse or trackpad
+- [x] Test: zoom, pan and drag a card with a real mouse or trackpad
