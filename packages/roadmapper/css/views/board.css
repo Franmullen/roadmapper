@@ -1,0 +1,88 @@
+/* Board view (js/views/board.js): columns, or the lanes grid */
+
+:root {
+    --rm-column-width: 260px;
+    --rm-lane-label-width: 140px;
+}
+
+.board-columns {
+    display: flex;
+    align-items: flex-start;
+    gap: var(--rm-gap);
+    padding: var(--rm-gap);
+}
+
+.column {
+    flex: 0 0 var(--rm-column-width);
+    display: flex;
+    flex-direction: column;
+    background: var(--cel-chrome-bg);
+    border: 1px solid var(--cel-panel-edge);
+    border-radius: var(--cel-radius-card);
+    box-sizing: border-box;
+}
+
+.column.unsorted,
+.lane-column-head.unsorted {
+    border-style: dashed;
+}
+
+/* --- Lanes --- */
+
+.lanes-grid {
+    display: grid;
+    gap: 6px;
+    width: max-content;
+    padding: var(--rm-gap);
+}
+
+.lane-column-head {
+    background: var(--cel-chrome-bg);
+    border: 1px solid var(--cel-panel-edge);
+    border-radius: var(--cel-radius-card);
+}
+
+.lane-label {
+    padding: 10px;
+    background: var(--cel-chrome-bg);
+    border: 1px solid var(--cel-panel-edge);
+    border-radius: var(--cel-radius-card);
+}
+
+.lane-label.no-lane {
+    border-style: dashed;
+}
+
+.lane-name {
+    font-weight: var(--cel-font-weight-strong);
+    overflow-wrap: anywhere;
+}
+
+.lane-label.no-lane .lane-name {
+    color: var(--cel-text-secondary);
+}
+
+.lane-stats {
+    margin-top: 4px;
+    color: var(--cel-text-secondary);
+    font-size: var(--cel-font-size-small);
+}
+
+.lane-cell {
+    display: flex;
+    flex-direction: column;
+    min-height: 56px;
+    padding-top: 8px;
+    background: var(--cel-chrome-bg);
+    border: 1px solid var(--cel-divider);
+    border-radius: var(--cel-radius-card);
+}
+
+.lane-cell .add-plan {
+    opacity: 0;
+}
+
+.lane-cell:hover .add-plan,
+.lane-cell .add-plan:focus-visible {
+    opacity: 1;
+}

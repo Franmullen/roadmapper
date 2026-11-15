@@ -23,7 +23,7 @@ OUT = HERE / "generated"
 SEED = 1234
 
 THEMES = {
-    "milestone-board": {
+    "roadmapper": {
         "milestones": ["prototype", "first-release", "status-and-lanes", "dependencies", "timeline-view",
                        "agent-workflow", "workshop-publish", "polish"],
         "items": ["read folder tree", "card per markdown file", "drag to move file", "live refresh",
@@ -62,13 +62,15 @@ def slug(text):
     return "-".join("".join(ch if ch.isalnum() else " " for ch in text.lower()).split())
 
 
-def plan_markdown(rng, title, style):
-    """One plan file. The style decides what conventions the file follows."""
+def plan_markdown(rng, title, style, depends=()):
+    """One plan file. The style decides what conventions the file follows; `depends` names other plans."""
     lines = []
-    if style in ("frontmatter", "chris") and rng.random() < 0.7:
+    if style in ("frontmatter", "chris") and (depends or rng.random() < 0.7):
         status = rng.choice(["todo", "doing", "review", "done", "blocked"])
-        lines += ["---", f"status: {status}", f"lane: {rng.choice(['core', 'ui', 'infra', 'agent-a', 'agent-b'])}",
-                  "---", ""]
+        lines += ["---", f"status: {status}", f"lane: {rng.choice(['core', 'ui', 'infra', 'agent-a', 'agent-b'])}"]
+        if depends:
+            lines.append(f"depends: {', '.join(depends)}")
+        lines += ["---", ""]
     if style != "no-heading":
         lines += [f"# {title[:1].upper() + title[1:]}", ""]
     lines += [f"Plan for {title}.", ""]
@@ -99,6 +101,7 @@ def make_project(rng, name, theme, n_milestones, items_per, style="plain", loose
     pool = list(spec["items"])
     rng.shuffle(pool)
 
+    written = []  # plan names so far, for depends: links back to earlier work
     for index, milestone in enumerate(milestones, start=1):
         folder = root / f"{index:02d}-{milestone}"
         folder.mkdir(parents=True, exist_ok=True)
@@ -112,7 +115,14 @@ def make_project(rng, name, theme, n_milestones, items_per, style="plain", loose
             sub = folder
             if nested and rng.random() < 0.4:
                 sub = folder / rng.choice(["design", "build", "test"])
-            write(sub / f"{slug(title)}-{i + 1}.md", plan_markdown(rng, title, style))
+            plan_name = f"{slug(title)}-{i + 1}"
+            depends = []
+            if written and style in ("frontmatter", "chris") and rng.random() < 0.35:
+                depends = rng.sample(written, min(len(written), rng.randint(1, 2)))
+                if rng.random() < 0.08:
+                    depends.append("not-written-yet")  # a broken link, to show how one is flagged
+            write(sub / f"{plan_name}.md", plan_markdown(rng, title, style, depends))
+            written.append(plan_name)
         if rng.random() < 0.3:
             write(folder / "sketch.txt", "Not a markdown file, so not a card.\n")
 
@@ -131,8 +141,8 @@ def main():
     OUT.mkdir(parents=True)
 
     # Fixed shapes, each testing one aspect of the layout.
-    make_project(rng, "a-tiny", "milestone-board", 3, 2)
-    make_project(rng, "b-this-project", "milestone-board", 8, (1, 5), style="frontmatter", loose=2)
+    make_project(rng, "a-tiny", "roadmapper", 3, 2)
+    make_project(rng, "b-this-project", "roadmapper", 8, (1, 5), style="frontmatter", loose=2)
     make_project(rng, "c-wide-8", "space-shooter", 8, (0, 3), empty=2)
     make_project(rng, "d-deep-40", "recipe-web-app", 2, 40)
     make_project(rng, "e-chris-style", "data-pipeline", 6, (2, 6), style="chris", nested=True)

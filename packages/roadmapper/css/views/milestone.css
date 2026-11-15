@@ -1,0 +1,160 @@
+/* Milestone view (js/views/milestone.js) */
+
+.detail {
+    max-width: 880px;
+}
+
+.back-button {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    margin-bottom: 8px;
+}
+
+.detail .column-header {
+    padding: 0;
+}
+
+.detail h1 {
+    flex: 1;
+    margin: 0;
+    font-size: var(--cel-font-size-heading);
+}
+
+.detail .progress {
+    max-width: 320px;
+}
+
+.description {
+    margin: 10px 0 0;
+    color: var(--cel-text-secondary);
+}
+
+.detail-actions {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    margin: 12px 0;
+}
+
+.detail-actions .add-plan {
+    margin: 0;
+}
+
+.status-groups {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+}
+
+.status-group {
+    padding: 8px 10px;
+    background: var(--cel-chrome-bg);
+    border: 1px solid var(--cel-panel-edge);
+    border-radius: var(--cel-radius-card);
+}
+
+.status-group h2 {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    margin: 0 0 6px;
+    font-size: var(--cel-font-size-base);
+}
+
+.detail-list {
+    list-style: none;
+    margin: 0;
+    padding: 0;
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+}
+
+.detail-row {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) auto;
+    grid-template-areas: "title status" "meta status" "deps deps";
+    align-items: center;
+    gap: 2px 12px;
+    padding: 6px 8px;
+    background: var(--cel-content-bg);
+    border: 1px solid var(--cel-divider);
+    border-radius: var(--cel-radius-control);
+}
+
+.detail-title {
+    grid-area: title;
+    justify-self: start;
+    padding: 0;
+    border: none;
+    background: none;
+    min-height: 0;
+    text-align: left;
+    color: var(--cel-text-primary);
+    font-weight: var(--cel-font-weight-strong);
+    cursor: pointer;
+}
+
+.detail-title:hover {
+    color: var(--cel-accent);
+    text-decoration: underline;
+}
+
+.detail-meta {
+    grid-area: meta;
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 4px 10px;
+    font-size: var(--cel-font-size-small);
+}
+
+.detail-meta .card-file,
+.detail-meta .card-tasks {
+    margin: 0;
+}
+
+.derived {
+    color: var(--cel-text-secondary);
+    font-style: italic;
+}
+
+.status-select {
+    grid-area: status;
+}
+
+/* A plan's dependencies, as links to their files. */
+.dep-links {
+    grid-area: deps;
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 2px 8px;
+    margin-top: 2px;
+    font-size: var(--cel-font-size-small);
+}
+
+.dep-label {
+    color: var(--cel-text-secondary);
+}
+
+.dep-link {
+    min-height: 0;
+    padding: 0 6px;
+    border: 1px solid var(--cel-divider);
+    border-radius: 999px;
+    background: none;
+    color: var(--cel-text-primary);
+    font-size: var(--cel-font-size-small);
+    cursor: pointer;
+}
+
+.dep-link:hover:not(:disabled) {
+    border-color: var(--cel-accent);
+    color: var(--cel-accent);
+}
+
+.dep-link.dep-ready .bi { color: var(--rm-done); }
+.dep-link.dep-waiting .bi { color: var(--rm-doing); }
+.dep-link.dep-problem { color: var(--rm-blocked); border-color: currentColor; }

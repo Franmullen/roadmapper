@@ -3,14 +3,14 @@
 //
 //   model.js     the file conventions, as pure functions (folders and Markdown -> project)
 //   actions.js   every read and write to the project through Celbridge
-//   views/       one file per view; each draws the project and calls back through ctx
+//   views/       one file per view (plus css/views/<id>.css); each draws the project and calls back through ctx
 //   viewport.js  pan and zoom for views drawn on a canvas
 //   drag.js      pointer-based drag and drop
 //   ui.js        shared DOM building blocks
 
 import celbridge from '/assets/celbridge-client/celbridge.js';
 import { ContentLoadedReason } from '/assets/celbridge-client/api/document-api.js';
-import { normalizeFolder, parseConfig, serializeConfig } from './model.js';
+import { normalizeFolder, parseConfig, serializeConfig, statusCounts } from './model.js';
 import { RootMissingError, createActions } from './actions.js';
 import { createDragController } from './drag.js';
 import { createViewport, createZoomControls } from './viewport.js';
@@ -19,6 +19,9 @@ import { VIEW_LIST, milestoneView } from './views/index.js';
 
 const client = celbridge;
 const RESCAN_DELAY_MS = 250;
+
+// Zoom levels a view's CSS can use to show less detail when zoomed out: #board[data-zoom="far"] etc.
+const zoomLevel = scale => (scale < 0.45 ? 'far' : scale < 0.8 ? 'mid' : 'near');
 
 const boardEl = document.getElementById('board');
 const rootInput = document.getElementById('root-input');
@@ -33,7 +36,11 @@ const messageEl = document.getElementById('message');
 const messageText = document.getElementById('message-text');
 const createRootButton = document.getElementById('create-root');
 
+// The .roadmap file's settings, and how this editor is showing them. `ui` starts from the file's
+// defaults and is then kept with the editor state, not written to the file.
 let config = parseConfig('');
+const ui = { view: VIEW_LIST[0].id, showLanes: false, milestone: null };
+
 let documentResource = '';
 let writable = true;
 let dirty = false;
@@ -41,11 +48,12 @@ let watchId = null;
 let scanToken = 0;
 let rescanTimer = null;
 let rootMissing = false;
-
 let project = null;
-let milestoneFolder = null;
 let renderDeferred = false;
-let pendingDetailScroll = 0;
+let restoreScrollTop = 0;
+let uiRestored = false;
+
+const isView = id => VIEW_LIST.some(view => view.id === id);
 
 // --- Host helpers ---
 
@@ -59,15 +67,28 @@ async function notify(severity, message, action) {
 
 const actions = createActions(client, { notify });
 
-const viewport = createViewport(boardEl, { onChange: state => zoomControls.update(state) });
-const zoomControls = createZoomControls(viewport);
+const zoomControls = createZoomControls();
+const viewport = createViewport(boardEl, {
+    onChange: state => {
+        zoomControls.update(state);
+        boardEl.dataset.zoom = zoomLevel(state.scale);
+    },
+});
+zoomControls.connect(viewport);
 
 const drag = createDragController({
     onDrop: (payload, target) => act(() => actions.dropPlan(project, payload, target)),
     canDrag: () => writable,
     scrollContainer: boardEl,
     getScale: () => (viewport.isAttached() ? viewport.scale : 1),
-    onEdge: (dx, dy) => { if (viewport.isAttached()) viewport.panBy(-dx, -dy); else { boardEl.scrollLeft += dx; boardEl.scrollTop += dy; } },
+    onEdge: (dx, dy) => {
+        if (viewport.isAttached()) {
+            viewport.panBy(-dx, -dy);
+        } else {
+            boardEl.scrollLeft += dx;
+            boardEl.scrollTop += dy;
+        }
+    },
 });
 
 function today() {
@@ -82,9 +103,43 @@ async function act(action, { rewatch = false } = {}) {
     await scan();
 }
 
+// Everything the toolbar and the views can do.
+const commands = {
+    open: resource => actions.openFile(resource),
+    reveal: folder => actions.revealFolder(folder),
+    showMilestone: folder => {
+        ui.milestone = folder;
+        restoreScrollTop = 0;
+        render();
+    },
+    showView: id => {
+        ui.view = id;
+        ui.milestone = null;
+        render();
+    },
+    toggleLanes: () => {
+        ui.showLanes = !ui.showLanes;
+        render();
+    },
+    addLane: name => {
+        const lane = name.trim();
+        if (!lane || !project || config.lanes.includes(lane)) return;
+        changeSettings({ lanes: [...new Set([...project.lanes, lane])] });
+        scan();
+    },
+    createPlan: (folder, lane, title) => act(() => actions.createPlan(project, folder, lane, title)),
+    createMilestone: title => act(() => actions.createMilestone(project, config, title, rootMissing), { rewatch: rootMissing }),
+    updatePlan: (resource, updates) => act(() => actions.updatePlan(resource, updates)),
+    createMilestoneReadme: milestone => act(() => actions.createMilestoneReadme(milestone)),
+    createRoot: () => act(() => actions.createRoot(config), { rewatch: true }),
+    writeAgentGuide: () => actions.writeAgentGuide(config, project?.lanes ?? config.lanes, documentResource),
+};
+
 // --- Settings document ---
 
-function applyContent(content) {
+// The file's view and showLanes only set where the editor opens, so they apply on the first load and
+// only when the editor has no saved state of its own.
+function applyContent(content, { firstLoad = false } = {}) {
     try {
         config = parseConfig(content);
         showMessage('');
@@ -93,13 +148,11 @@ function applyContent(content) {
         config = parseConfig('');
         showMessage('This .roadmap file is not valid JSON, so the default settings are shown.');
     }
+    if (firstLoad && !uiRestored) {
+        if (isView(config.view)) ui.view = config.view;
+        ui.showLanes = config.showLanes;
+    }
     rootInput.value = config.root;
-}
-
-function reportChange() {
-    if (!writable) return;
-    dirty = true;
-    client.document.notifyChanged();
 }
 
 async function save() {
@@ -113,9 +166,11 @@ async function save() {
     }
 }
 
-function changeSetting(update) {
+function changeSettings(update) {
+    if (!writable) return;
     Object.assign(config, update);
-    reportChange();
+    dirty = true;
+    client.document.notifyChanged();
     render();
 }
 
@@ -125,10 +180,9 @@ async function changeRoot(value) {
         rootInput.value = config.root;
         return;
     }
-    config.root = root;
+    ui.milestone = null;
+    changeSettings({ root });
     rootInput.value = root;
-    milestoneFolder = null;
-    reportChange();
     await startWatch();
     await scan();
 }
@@ -162,6 +216,7 @@ async function startWatch() {
     }
 }
 
+// Never throws: it runs from timers and event handlers, so a failure is shown rather than lost.
 async function scan() {
     const token = ++scanToken;
     try {
@@ -169,16 +224,19 @@ async function scan() {
         if (token !== scanToken) return;
         project = loaded;
         rootMissing = false;
-        showMessage(project.milestones.length === 0
-            ? `"${config.root}" is empty. Add a milestone to start planning.`
-            : '');
+        showMessage(project.milestones.length === 0 ? `"${config.root}" is empty. Add a milestone to start planning.` : '');
     } catch (e) {
         if (token !== scanToken) return;
-        if (!(e instanceof RootMissingError)) throw e;
-        project = null;
-        rootMissing = true;
-        milestoneFolder = null;
-        showMessage(`The folder "${config.root}" does not exist yet.`, writable);
+        if (e instanceof RootMissingError) {
+            project = null;
+            rootMissing = true;
+            ui.milestone = null;
+            showMessage(`The folder "${config.root}" does not exist yet.`, writable);
+        } else {
+            // Keep showing the last good project; the next file change or Refresh tries again.
+            console.error('[Roadmapper] Could not read the plans:', e);
+            showMessage(`Could not read the plans in "${config.root}". Press Refresh to try again.`);
+        }
     }
     render();
 }
@@ -186,34 +244,15 @@ async function scan() {
 // --- Rendering ---
 
 function viewContext() {
-    return {
-        config,
-        writable,
-        today: today(),
-        milestone: milestoneFolder,
-        drag,
-        open: resource => actions.openFile(resource),
-        reveal: folder => actions.revealFolder(folder),
-        showMilestone: folder => {
-            milestoneFolder = folder;
-            pendingDetailScroll = 0;
-            render();
-        },
-        run: {
-            createPlan: (folder, lane, title) => act(() => actions.createPlan(project, folder, lane, title)),
-            createMilestone: title => act(() => actions.createMilestone(project, config, title, rootMissing), { rewatch: rootMissing }),
-            updatePlan: (resource, updates) => act(() => actions.updatePlan(resource, updates)),
-            createMilestoneReadme: milestone => act(() => actions.createMilestoneReadme(milestone)),
-        },
-    };
+    return { config, ui, writable, today: today(), milestone: ui.milestone, drag, ...commands };
 }
 
 function currentView() {
-    if (milestoneFolder !== null && project?.milestones.some(m => m.folder === milestoneFolder)) {
+    if (ui.milestone !== null && project?.milestones.some(m => m.folder === ui.milestone)) {
         return milestoneView;
     }
-    milestoneFolder = null;
-    return VIEW_LIST.find(view => view.id === config.view) ?? VIEW_LIST[0];
+    ui.milestone = null;
+    return VIEW_LIST.find(view => view.id === ui.view) ?? VIEW_LIST[0];
 }
 
 function render() {
@@ -233,46 +272,50 @@ function render() {
         return;
     }
 
+    const ctx = viewContext();
     const content = el('div', 'rm-content');
-    view.render(content, project, viewContext());
+    view.render(content, project, ctx);
 
     if (view.zoomable) {
         boardEl.className = `zoomable view-${view.id}`;
         boardEl.replaceChildren(content, zoomControls.element);
-        const key = view.id === 'board' && config.showLanes ? 'board-lanes' : view.id;
+        view.mounted?.(content, project, ctx);
+        const key = view.id === 'board' && ui.showLanes ? 'board-lanes' : view.id;
         viewport.attach(content, { key, align: view.fitAlign });
     } else {
-        const scrollTop = pendingDetailScroll ?? boardEl.scrollTop;
-        pendingDetailScroll = null;
+        // A re-render keeps the scroll position; opening a view (or restoring state) sets it.
+        const scrollTop = restoreScrollTop ?? boardEl.scrollTop;
+        restoreScrollTop = null;
         viewport.detach();
         boardEl.className = `view-${view.id}`;
         boardEl.replaceChildren(content);
+        view.mounted?.(content, project, ctx);
         boardEl.scrollTop = scrollTop;
     }
 }
 
 function renderToolbar(view) {
     for (const element of viewSwitch.children) {
-        element.setAttribute('aria-pressed', String(element.dataset.view === config.view && view !== milestoneView));
+        element.setAttribute('aria-pressed', String(element.dataset.view === ui.view && view !== milestoneView));
     }
     const onBoard = view.id === 'board';
     lanesButton.hidden = !onBoard;
-    lanesButton.setAttribute('aria-pressed', String(config.showLanes));
-    addLaneButton.hidden = !(onBoard && config.showLanes);
+    lanesButton.setAttribute('aria-pressed', String(ui.showLanes));
+    addLaneButton.hidden = !(onBoard && ui.showLanes);
 
     if (!project) {
         summaryEl.textContent = '';
         return;
     }
-    const count = status => project.plans.filter(plan => plan.status === status).length;
+    const counts = statusCounts(project.plans);
     const milestones = project.milestones.filter(m => !m.unsorted).length;
     const parts = [
         `${milestones} milestone${milestones === 1 ? '' : 's'}`,
         `${project.plans.length} plan${project.plans.length === 1 ? '' : 's'}`,
-        `${count('done')} done`,
+        `${counts.done} done`,
     ];
-    if (count('doing')) parts.push(`${count('doing')} doing`);
-    if (count('blocked')) parts.push(`${count('blocked')} blocked`);
+    if (counts.doing) parts.push(`${counts.doing} doing`);
+    if (counts.blocked) parts.push(`${counts.blocked} blocked`);
     summaryEl.textContent = parts.join(' · ');
 }
 
@@ -291,12 +334,17 @@ function applyWritable(state) {
 
 // --- Wiring ---
 
+// Each view brings its own stylesheet, css/views/<id>.css.
+for (const view of [...VIEW_LIST, milestoneView]) {
+    const link = document.createElement('link');
+    link.rel = 'stylesheet';
+    link.href = `css/views/${view.id}.css`;
+    document.head.appendChild(link);
+}
+
 for (const view of VIEW_LIST) {
-    const choice = button('toolbar-button view-choice', [icon(view.icon), el('span', '', view.label)], () => {
-        milestoneFolder = null;
-        if (config.view !== view.id) changeSetting({ view: view.id });
-        else render();
-    }, `${view.label} view`);
+    const choice = button('toolbar-button view-choice', [icon(view.icon), el('span', '', view.label)],
+        () => commands.showView(view.id), `${view.label} view`);
     choice.dataset.view = view.id;
     viewSwitch.appendChild(choice);
 }
@@ -311,19 +359,11 @@ rootInput.addEventListener('keydown', event => {
 });
 refreshButton.addEventListener('click', () => scan());
 addMilestoneButton.addEventListener('click', () =>
-    inlinePrompt(addMilestoneButton, 'Milestone name, then Enter', title => viewContext().run.createMilestone(title)));
-addLaneButton.addEventListener('click', () =>
-    inlinePrompt(addLaneButton, 'Lane name, then Enter', name => {
-        const lane = name.trim();
-        if (lane && project && !config.lanes.includes(lane)) {
-            changeSetting({ lanes: [...new Set([...project.lanes, lane])] });
-            scan();
-        }
-    }));
-lanesButton.addEventListener('click', () => changeSetting({ showLanes: !config.showLanes }));
-agentGuideButton.addEventListener('click', () =>
-    actions.writeAgentGuide(config, project?.lanes ?? config.lanes, documentResource));
-createRootButton.addEventListener('click', () => act(() => actions.createRoot(config), { rewatch: true }));
+    inlinePrompt(addMilestoneButton, 'Milestone name, then Enter', commands.createMilestone));
+addLaneButton.addEventListener('click', () => inlinePrompt(addLaneButton, 'Lane name, then Enter', commands.addLane));
+lanesButton.addEventListener('click', commands.toggleLanes);
+agentGuideButton.addEventListener('click', commands.writeAgentGuide);
+createRootButton.addEventListener('click', commands.createRoot);
 
 document.addEventListener('rm-prompt-closed', () => {
     if (renderDeferred) setTimeout(render, 0);
@@ -332,8 +372,8 @@ document.addEventListener('rm-prompt-closed', () => {
 document.addEventListener('keydown', event => {
     if (event.defaultPrevented || event.ctrlKey || event.metaKey || event.altKey) return;
     if (event.target.closest?.('input, select, textarea')) return;
-    if (event.key === 'Escape' && milestoneFolder !== null) {
-        viewContext().showMilestone(null);
+    if (event.key === 'Escape' && ui.milestone !== null) {
+        commands.showMilestone(null);
     } else if (viewport.isAttached() && (event.key === '+' || event.key === '=')) {
         viewport.zoomBy(1.25);
     } else if (viewport.isAttached() && event.key === '-') {
@@ -354,7 +394,7 @@ try {
     await client.initializeDocument({
         onContent: async (content, metadata) => {
             documentResource = metadata?.resourceKey ?? '';
-            applyContent(content);
+            applyContent(content, { firstLoad: true });
         },
 
         onRequestSave: save,
@@ -377,7 +417,9 @@ try {
         },
 
         onRequestState: () => JSON.stringify({
-            milestone: milestoneFolder,
+            view: ui.view,
+            showLanes: ui.showLanes,
+            milestone: ui.milestone,
             zoom: viewport.exportMemory(),
             scrollTop: viewport.isAttached() ? 0 : boardEl.scrollTop,
         }),
@@ -385,12 +427,15 @@ try {
         onRestoreState: stateJson => {
             try {
                 const state = JSON.parse(stateJson);
-                milestoneFolder = typeof state?.milestone === 'string' ? state.milestone : null;
+                uiRestored = true;
+                if (isView(state?.view)) ui.view = state.view;
+                if (typeof state?.showLanes === 'boolean') ui.showLanes = state.showLanes;
+                ui.milestone = typeof state?.milestone === 'string' ? state.milestone : null;
                 viewport.importMemory(state?.zoom);
-                pendingDetailScroll = Number(state?.scrollTop) || 0;
+                restoreScrollTop = Number(state?.scrollTop) || 0;
                 if (project) render();
             } catch {
-                // A malformed snapshot just means the board opens fitted to the screen.
+                // A malformed snapshot just means the board opens with the file's defaults.
             }
         },
     });

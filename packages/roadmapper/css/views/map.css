@@ -1,0 +1,166 @@
+/* Map view (js/views/map.js): lanes as bands, milestones as columns, plans as nodes, dependency arrows.
+   Nodes keep one size at every zoom level, because the arrows are drawn to their positions. What a node
+   shows changes with #board[data-zoom]: far is a coloured block, mid adds the title, near the tasks. */
+
+:root {
+    --rm-map-label-width: 120px;
+    --rm-map-column-width: 200px;
+    --rm-map-node-height: 28px;
+}
+
+/* The grid is the positioned box the arrows are drawn in. Cells stay unpositioned, so a node's
+   offsetParent is the grid itself. */
+.map-grid {
+    position: relative;
+    display: grid;
+    gap: 0 40px;
+    width: max-content;
+    padding: var(--rm-gap);
+}
+
+.map-corner {
+    margin-bottom: 8px;
+}
+
+.map-head {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+    margin-bottom: 8px;
+    padding: 8px 10px;
+    background: var(--cel-chrome-bg);
+    border: 1px solid var(--cel-panel-edge);
+    border-radius: var(--cel-radius-card);
+}
+
+.map-head.unsorted {
+    border-style: dashed;
+}
+
+.map-head-title {
+    display: flex;
+    align-items: baseline;
+    gap: 8px;
+}
+
+.map-lane {
+    display: flex;
+    align-items: center;
+    padding: 0 8px;
+    border-top: 1px solid var(--cel-divider);
+    font-weight: var(--cel-font-weight-strong);
+    overflow-wrap: anywhere;
+}
+
+.map-lane.no-lane {
+    color: var(--cel-text-secondary);
+    font-weight: normal;
+}
+
+.map-cell {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+    min-height: var(--rm-map-node-height);
+    padding: 8px 0;
+    border-top: 1px solid var(--cel-divider);
+}
+
+.map-node {
+    position: relative;
+    z-index: 1;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    box-sizing: border-box;
+    height: var(--rm-map-node-height);
+    min-height: 0;
+    padding: 0 8px;
+    background: var(--cel-content-bg);
+    border: 1px solid var(--cel-divider);
+    border-left: 3px solid var(--rm-todo);
+    border-radius: var(--cel-radius-control);
+    color: var(--cel-text-primary);
+    font-size: var(--cel-font-size-small);
+    text-align: left;
+    cursor: pointer;
+    transition: opacity 0.12s;
+}
+
+.map-node.status-edge-doing { border-left-color: var(--rm-doing); }
+.map-node.status-edge-review { border-left-color: var(--rm-review); }
+.map-node.status-edge-done { border-left-color: var(--rm-done); }
+.map-node.status-edge-blocked { border-left-color: var(--rm-blocked); }
+
+.map-node:hover,
+.map-node:focus-visible {
+    border-top-color: var(--cel-accent);
+    border-right-color: var(--cel-accent);
+    border-bottom-color: var(--cel-accent);
+    outline: none;
+}
+
+.map-node.has-problem {
+    box-shadow: 0 0 0 1px var(--rm-blocked);
+}
+
+.map-title {
+    flex: 1;
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.map-tasks {
+    color: var(--cel-text-secondary);
+    font-variant-numeric: tabular-nums;
+}
+
+/* --- Arrows --- */
+
+.map-edges {
+    position: absolute;
+    left: 0;
+    top: 0;
+    z-index: 0;
+    pointer-events: none;
+    overflow: visible;
+}
+
+.map-edge {
+    fill: none;
+    stroke: var(--cel-text-secondary);
+    stroke-width: 1.5;
+    transition: opacity 0.12s;
+}
+
+.map-edge-done {
+    opacity: 0.35;
+}
+
+.map-edge-problem {
+    stroke: var(--rm-blocked);
+    stroke-dasharray: 5 4;
+}
+
+.map-arrow-ok path { fill: var(--cel-text-secondary); }
+.map-arrow-problem path { fill: var(--rm-blocked); }
+
+/* Hovering a node keeps it, its arrows and the plans at their other ends; the rest fade. */
+.map-focus .map-node:not(.lit) { opacity: 0.3; }
+.map-focus .map-edge:not(.lit) { opacity: 0.1; }
+.map-focus .map-edge.lit { opacity: 1; stroke-width: 2.5; }
+
+/* --- Detail by zoom --- */
+
+#board[data-zoom="far"] .map-node > :not(.status-dot),
+#board[data-zoom="mid"] .map-tasks {
+    display: none;
+}
+
+#board[data-zoom="far"] .map-node.status-edge-todo { background: color-mix(in srgb, var(--rm-todo) 30%, var(--cel-content-bg)); }
+#board[data-zoom="far"] .map-node.status-edge-doing { background: var(--rm-doing); }
+#board[data-zoom="far"] .map-node.status-edge-review { background: var(--rm-review); }
+#board[data-zoom="far"] .map-node.status-edge-done { background: var(--rm-done); }
+#board[data-zoom="far"] .map-node.status-edge-blocked { background: var(--rm-blocked); }

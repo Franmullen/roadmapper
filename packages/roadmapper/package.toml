@@ -1,9 +1,9 @@
-# Roadmapper: plan milestones as folders of Markdown files, and see them as a board.
+# Roadmapper: plan milestones as folders of Markdown files, and see them as a pipeline, a board and a map.
 
 [package]
 name = "roadmapper"
 title = "Roadmapper"
-package-version = "0.3.0"
+package-version = "0.4.0"
 
 [contributes]
 editors = ["roadmapper.editor.toml"]

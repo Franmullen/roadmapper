@@ -15,7 +15,7 @@ There's no separate database: **your folders and Markdown files are the plan**. 
    }
    ```
 
-   Optional settings: `"lanes": ["core", "ui"]` and `"showLanes": true` for the lanes grid, and `"view": "pipeline"` or `"board"` for the view it opens in. The board saves these itself as you use it.
+   Optional settings: `"lanes": ["core", "ui"]` sets the lane order (**+ Lane** on the board adds to it). `"view": "pipeline"`, `"board"` or `"map"` and `"showLanes": true` choose how the board first opens; after that, each editor remembers its own view without changing the file.
 
 3. Open it. If the folder is empty, use **+ Milestone** to start.
 
@@ -41,6 +41,7 @@ plans/
 | Card title | `title:` front matter, else the first `# heading`, else the file name |
 | Status | `status:` front matter: `todo`, `doing`, `review`, `done` or `blocked`. Without it, the checkboxes decide: none ticked is To do, some is Doing, all is Done. |
 | Lane | `lane:` front matter |
+| Dependencies | `depends:` front matter, naming the plans that must be done first (see below) |
 | Task progress | The `- [ ]` / `- [x]` checkboxes |
 
 A plan file looks like this:
@@ -58,13 +59,28 @@ lane: ui
 - [ ] Write the lane into front matter
 ```
 
+### Dependencies
+
+`depends:` lists the plans this one needs first, by file name without `.md` (`login`), or by path inside the root (`02-beta/login`) when the name is not unique. Any of these forms works:
+
+```yaml
+depends: login, 02-beta/api
+depends: [login, 02-beta/api]
+depends:
+  - login
+  - 02-beta/api
+```
+
+Cards show what a plan is waiting on. A dependency is flagged in red when no plan has that name, when more than one does, or when it is scheduled in a later milestone than the plan that needs it.
+
 ## Views
 
-- **Pipeline** (the default): one stage per milestone, in order, with its due date, plans done, a bar split by status and the lanes involved. A **Today** marker sits between the milestones due before and after today. Overdue stages turn red and finished ones show a tick. Click a stage to open that milestone.
+- **Pipeline** (the default): one stage per milestone, in order, with its due date, plans done, a bar split by status, the lanes involved and its plans. A **Today** marker sits between the milestones due before and after today. Overdue stages turn red and finished ones show a tick. Click a plan to open its file, or drag it to another stage to move it there. Click a stage's title to open that milestone.
 - **Board**: a column per milestone with its plan cards, or the lanes grid when **Lanes** is on.
-- **Milestone**: one milestone's plans grouped by status. Use **Back** or Escape to return.
+- **Map**: the whole project at once. Lanes are bands, milestones are columns and each plan is a node, with arrows from each plan to the plans that depend on it. Hover a plan to pick out its links; click it to open it. Zoomed out, plans become coloured blocks; zoom in for titles and task counts.
+- **Milestone**: one milestone's plans grouped by status, with links to each plan's dependencies. Use **Back** or Escape to return.
 
-Both Pipeline and Board pan and zoom, so any size of project fits on screen:
+Pipeline, Board and Map pan and zoom, so any size of project fits on screen:
 
 - Ctrl+wheel (or pinch) zooms at the pointer; the wheel and dragging the background pan.
 - The controls in the corner (or the keys `-`, `+` and `0`) zoom out, zoom in and fit to the screen. Click the percentage to return to 100%.
@@ -76,7 +92,7 @@ Both Pipeline and Board pan and zoom, so any size of project fits on screen:
 - **Drag a card** to another milestone to move its file into that folder. In the lanes view, dragging to another row also changes its `lane:`.
 - **+ Add plan** in a column (or a lane cell) creates a plan file from a title.
 - **+ Milestone** creates the next numbered folder with a README.
-- **Lanes** switches to a grid of lanes (rows) by milestones (columns), for planning parallel work. **+ Lane** adds a lane, and the lane order is saved in the `.roadmap` file.
+- **Lanes** switches the Board to a grid of lanes (rows) by milestones (columns), for planning parallel work. **+ Lane** adds a lane, and the lane order is saved in the `.roadmap` file.
 - **Click a milestone's title** to drill in: its description, due date and progress, and its plans grouped by status. Change a plan's status from its dropdown, or drag it to another status group.
 - **Click a folder name** to show that folder in the Explorer.
 - A due date turns red once it has passed and the milestone still has work left.
@@ -89,9 +105,9 @@ Press **Agent guide** on the toolbar to add a Roadmapper section to the project'
 
 - `js/model.js` is the pure logic: settings, front matter, statuses, the project model built from the folder tree, templates and agent instructions. Test it with `node --test packages/roadmapper/tests/`.
 - `js/actions.js` makes every read and write through the `celbridge-client` API.
-- `js/views/` holds one file per view. Each exports `{ id, label, icon, zoomable, fitAlign, render(container, project, ctx) }` and only draws; add a view by adding a file and listing it in `views/index.js`.
+- `js/views/` holds one file per view, with its styles in `css/views/<id>.css`. Each exports `{ id, label, icon, zoomable, fitAlign, render(container, project, ctx), mounted? }` and only draws; add a view by adding those two files and listing it in `views/index.js`. `css/roadmapper.css` holds what every view shares.
 - `js/viewport.js` (pan and zoom), `js/drag.js` (pointer-event drag and drop; native HTML5 drag doesn't work in Celbridge's WebView) and `js/ui.js` (shared pieces such as cards and chips) are used by the views.
-- `js/main.js` is the editor itself: document lifecycle, file watch, toolbar and view switching.
+- `js/main.js` is the editor itself: document lifecycle, file watch, toolbar and view switching. Views call back through one `ctx` of commands; they never touch files or editor state directly.
 
 ## License
 

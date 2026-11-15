@@ -2,10 +2,10 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import {
-    AGENT_SECTION_END, AGENT_SECTION_START, agentInstructions, buildColumns, deriveStatus, displayName, isOverdue,
+    AGENT_SECTION_END, AGENT_SECTION_START, agentInstructions, scanTree, deriveStatus, displayName, isOverdue,
     laneOrder, milestoneTemplate, nextMilestoneFolder, normalizeFolder, normalizeStatus, parseConfig, parseFrontMatter,
     planTemplate, serializeConfig, setFrontMatter, slugify, summarizeMarkdown, summarizeMilestone, uniqueFileName,
-    upsertSection, buildProject, statusCounts, todayMarkerIndex, isMilestoneOverdue,
+    upsertSection, buildProject, statusCounts, todayMarkerIndex, isMilestoneOverdue, parseList, projectResources, dropChanges,
 } from '../js/model.js';
 import { fitState, zoomAt } from '../js/viewport.js';
 
@@ -15,13 +15,13 @@ const folder = (name, children = []) => ({ name, type: 'folder', children });
 // --- Settings ---
 
 test('config defaults, round-trips, and keeps only what is set', () => {
-    assert.deepEqual(parseConfig(''), { root: 'plans', lanes: [], showLanes: false, view: 'pipeline' });
+    assert.deepEqual(parseConfig(''), { root: 'plans', lanes: [], showLanes: false, view: null });
     assert.equal(parseConfig('{"view":"board"}').view, 'board');
-    assert.equal(parseConfig('{"view":"nonsense"}').view, 'pipeline');
+    assert.equal(parseConfig('{"view":" "}').view, null);
     assert.deepEqual(parseConfig('{"root":"project:docs/milestones/"}').root, 'docs/milestones');
     const config = { root: 'a/b', lanes: ['core', 'ui'], showLanes: true, view: 'board' };
     assert.deepEqual(parseConfig(serializeConfig(config)), config);
-    assert.equal(serializeConfig({ root: 'plans', lanes: [], showLanes: false }), '{\n  "root": "plans"\n}\n');
+    assert.equal(serializeConfig({ root: 'plans', lanes: [], showLanes: false, view: null }), '{\n  "root": "plans"\n}\n');
     assert.deepEqual(parseConfig('{"lanes":[" ui ","ui","",3]}').lanes, ['ui']);
     assert.throws(() => parseConfig('{not json'));
 });
@@ -54,6 +54,23 @@ test('setFrontMatter keeps Windows line endings', () => {
     assert.equal(setFrontMatter('---\r\nstatus: todo\r\n---\r\n# P\r\n', { status: 'done' }), '---\r\nstatus: done\r\n---\r\n# P\r\n');
 });
 
+test('lists read the same inline, comma-separated or as a block', () => {
+    assert.deepEqual(parseList('[a, "b c"]'), ['a', 'b c']);
+    assert.deepEqual(parseList('a,b, '), ['a', 'b']);
+    assert.deepEqual(parseList(undefined), []);
+    const { data } = parseFrontMatter('---\ndepends:\n  - login\n  - "02-beta/api" # soon\nlane: ui\n---\n');
+    assert.deepEqual(parseList(data.depends), ['login', '02-beta/api']);
+    assert.equal(data.lane, 'ui');
+});
+
+test('setFrontMatter replaces a block list whole, and keys match exactly', () => {
+    const original = '---\ndepends:\n  - a\n  - b\nstatus: todo\n---\n# P\n';
+    assert.equal(setFrontMatter(original, { depends: 'c' }), '---\ndepends: c\nstatus: todo\n---\n# P\n');
+    assert.equal(setFrontMatter(original, { depends: null }), '---\nstatus: todo\n---\n# P\n');
+    // "status" must not match a key that merely starts with it.
+    assert.equal(setFrontMatter('---\nstatusnote: x\n---\n', { status: 'done' }), '---\nstatusnote: x\nstatus: done\n---\n');
+});
+
 // --- Status ---
 
 test('status words are normalised and unknown words are ignored', () => {
@@ -76,12 +93,12 @@ test('status is derived from checkboxes when not set', () => {
 test('summary takes title, tasks, status and lane', () => {
     const md = '---\nstatus: review\nlane: ui\n---\nIntro\n# Real Title #\n- [x] one\n  * [X] two\n- [ ] three\n- not a task\n';
     assert.deepEqual(summarizeMarkdown(md, 'x.md'),
-        { title: 'Real Title', done: 2, total: 3, status: 'review', statusExplicit: true, lane: 'ui' });
+        { title: 'Real Title', done: 2, total: 3, status: 'review', statusExplicit: true, lane: 'ui', dependsOn: [] });
 });
 
 test('summary falls back to the file name and derived status', () => {
     assert.deepEqual(summarizeMarkdown('', 'auth-flow.md'),
-        { title: 'auth-flow', done: 0, total: 0, status: 'todo', statusExplicit: false, lane: '' });
+        { title: 'auth-flow', done: 0, total: 0, status: 'todo', statusExplicit: false, lane: '', dependsOn: [] });
     assert.equal(summarizeMarkdown('- [x] a\n- [x] b', 'a.MD').status, 'done');
     assert.equal(summarizeMarkdown('---\nstatus: weird\n---\n- [x] a\n- [ ] b', 'a.md').status, 'doing');
 });
@@ -92,18 +109,18 @@ test('milestone summary reads heading, due date and first paragraph', () => {
     assert.deepEqual(summarizeMilestone('---\ndue: soon\n---\nJust text.'), { title: null, due: null, description: 'Just text.' });
 });
 
-// --- Columns ---
+// --- The folder tree ---
 
-test('subfolders become milestone columns in natural order', () => {
+test('subfolders become milestones in natural order', () => {
     const tree = folder('plans', [
         folder('10-launch', [file('ship.md')]),
         folder('2-alpha', [file('b.md'), file('a.md'), file('notes.txt')]),
         folder('1-prototype'),
     ]);
-    const columns = buildColumns(tree, 'plans');
+    const columns = scanTree(tree, 'plans');
     assert.deepEqual(columns.map(c => c.name), ['1-prototype', '2-alpha', '10-launch']);
-    assert.deepEqual(columns[1].cards.map(c => c.resource), ['plans/2-alpha/a.md', 'plans/2-alpha/b.md']);
-    assert.equal(columns[0].cards.length, 0);
+    assert.deepEqual(columns[1].files.map(c => c.resource), ['plans/2-alpha/a.md', 'plans/2-alpha/b.md']);
+    assert.equal(columns[0].files.length, 0);
 });
 
 test('milestone README is metadata, not a card; nested READMEs are still cards', () => {
@@ -113,16 +130,16 @@ test('milestone README is metadata, not a card; nested READMEs are still cards',
         folder('m1', [file('README.md'), file('core.md'), folder('design', [file('readme.md')])]),
         folder('m2', [file('_milestone.md'), file('x.md')]),
     ]);
-    const columns = buildColumns(tree, 'plans');
+    const columns = scanTree(tree, 'plans');
     assert.equal(columns[0].unsorted, true);
-    assert.deepEqual(columns[0].cards.map(c => c.name), ['idea.md']);
+    assert.deepEqual(columns[0].files.map(c => c.name), ['idea.md']);
     assert.equal(columns[1].metaResource, 'plans/m1/README.md');
-    assert.deepEqual(columns[1].cards.map(c => c.resource), ['plans/m1/core.md', 'plans/m1/design/readme.md']);
+    assert.deepEqual(columns[1].files.map(c => c.resource), ['plans/m1/core.md', 'plans/m1/design/readme.md']);
     assert.equal(columns[2].metaResource, 'plans/m2/_milestone.md');
 });
 
-test('no Unsorted column when the root holds no loose plans', () => {
-    const columns = buildColumns(folder('plans', [file('README.md'), folder('m1')]), 'plans');
+test('no Unsorted milestone when the root holds no loose plans', () => {
+    const columns = scanTree(folder('plans', [file('README.md'), folder('m1')]), 'plans');
     assert.equal(columns.some(c => c.unsorted), false);
 });
 
@@ -220,6 +237,48 @@ test('buildProject joins folders, READMEs and plans into one project', () => {
         [['a.md', 'plans/01-alpha', 'done', 'core'], ['b.md', 'plans/01-alpha', 'doing', 'ui']]);
     assert.equal(project.plans.length, 4);
     assert.deepEqual(project.lanes, ['ui', 'agents', 'core']);
+});
+
+test('projectResources lists the READMEs and plans to read', () => {
+    const tree = folder('plans', [file('idea.md'), folder('01-a', [file('README.md'), file('x.md'), folder('d', [file('y.md')])])]);
+    assert.deepEqual(projectResources(tree, 'plans'), ['plans/idea.md', 'plans/01-a/README.md', 'plans/01-a/d/y.md', 'plans/01-a/x.md']);
+});
+
+test('dependencies resolve by name or path, and flag what is wrong', () => {
+    const tree = folder('plans', [
+        folder('01-alpha', [file('api.md'), file('login.md')]),
+        folder('02-beta', [file('ui.md'), file('login.md')]),
+        folder('03-gamma', [file('report.md')]),
+    ]);
+    const contents = new Map([
+        ['plans/01-alpha/api.md', '---\nstatus: done\n---\n# API\n'],
+        ['plans/01-alpha/login.md', '---\ndepends: report\n---\n# Login A\n'],
+        ['plans/02-beta/ui.md', '---\ndepends: [api, 01-alpha/login.md, login, nothing, ui]\n---\n# UI\n'],
+    ]);
+    const project = buildProject(tree, 'plans', contents, { lanes: [] });
+    const plan = name => project.plans.find(p => p.resource === `plans/${name}`);
+
+    assert.deepEqual(plan('02-beta/ui.md').depends.map(d => [d.ref, d.resource, d.done, d.problem]), [
+        ['api', 'plans/01-alpha/api.md', true, null],
+        ['01-alpha/login.md', 'plans/01-alpha/login.md', false, null],
+        ['login', null, false, 'ambiguous'],
+        ['nothing', null, false, 'missing'],
+        ['ui', null, false, 'missing'],            // a plan cannot depend on itself
+    ]);
+    assert.equal(plan('02-beta/ui.md').waitingOn, 1);
+    assert.equal(plan('02-beta/ui.md').depends[0].title, 'API');
+    assert.deepEqual(plan('01-alpha/api.md').dependents, ['plans/02-beta/ui.md']);
+    // Login (milestone 1) depends on Report (milestone 3): scheduled too late.
+    assert.equal(plan('01-alpha/login.md').depends[0].problem, 'later');
+});
+
+test('dropChanges says what a drop writes and where the file goes', () => {
+    const payload = { resource: 'p/a/x.md', from: 'p/a', lane: 'ui', status: 'todo' };
+    assert.deepEqual(dropChanges(payload, { folder: 'p/a' }), { updates: {}, moveTo: null });
+    assert.deepEqual(dropChanges(payload, { folder: 'p/b' }), { updates: {}, moveTo: 'p/b' });
+    assert.deepEqual(dropChanges(payload, { folder: 'p/b', lane: '' }), { updates: { lane: null }, moveTo: 'p/b' });
+    assert.deepEqual(dropChanges(payload, { status: 'done' }), { updates: { status: 'done' }, moveTo: null });
+    assert.deepEqual(dropChanges(payload, { folder: 'p/a', lane: 'ui', status: 'todo' }), { updates: {}, moveTo: null });
 });
 
 test('statusCounts counts every status', () => {

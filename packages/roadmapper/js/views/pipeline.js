@@ -1,11 +1,35 @@
 // Pipeline view: the high-level view. Each milestone is a stage in one line, showing its due date, how
-// many plans are done, a bar split by status, and the lanes working in it. A "Today" marker sits between
-// the stages by due date. Click a stage to open the milestone. It fits on screen at any size.
+// many plans are done, a bar split by status, the lanes working in it, and its plans. A "Today" marker
+// sits between the stages by due date. Click a plan to open its file, or drag it to another stage to
+// move it there; click a stage's title (or its background) to open the milestone.
 
 import { STATUSES, STATUS_LABELS, isComplete, isMilestoneOverdue, todayMarkerIndex } from '../model.js';
-import { button, dueChip, el, icon, inlinePrompt, statusBar } from '../ui.js';
+import { button, dependencyChip, dragPayload, dueChip, el, icon, inlinePrompt, statusBar, statusDot } from '../ui.js';
 
 const MAX_LANE_TAGS = 4;
+
+function planRow(ctx, plan) {
+    const row = el('li', 'stage-plan');
+    row.tabIndex = 0;
+    row.title = `Open ${plan.path}`;
+    row.append(statusDot(plan.status), el('span', 'stage-plan-title', plan.title));
+    const deps = dependencyChip(plan);
+    if (deps) row.appendChild(deps);
+    if (plan.total > 0) {
+        row.appendChild(el('span', plan.done === plan.total ? 'card-tasks complete' : 'card-tasks', `${plan.done}/${plan.total}`));
+    }
+
+    const open = event => {
+        event.stopPropagation();
+        ctx.open(plan.resource);
+    };
+    row.addEventListener('click', open);
+    row.addEventListener('keydown', event => {
+        if (event.key === 'Enter') open(event);
+    });
+    ctx.drag.makeDraggable(row, dragPayload(plan));
+    return row;
+}
 
 function stage(ctx, milestone) {
     const total = milestone.plans.length;
@@ -15,13 +39,11 @@ function stage(ctx, milestone) {
     if (isMilestoneOverdue(milestone, ctx.today)) classes.push('overdue');
     if (milestone.counts.blocked) classes.push('has-blocked');
 
-    const card = el('div', classes.join(' '));
-    card.tabIndex = 0;
-    card.setAttribute('role', 'button');
-    card.title = `Show ${milestone.title} in detail`;
+    const card = el('section', classes.join(' '));
+    const open = () => ctx.showMilestone(milestone.folder);
 
     const head = el('div', 'stage-head');
-    head.appendChild(el('div', 'stage-title', milestone.title));
+    head.appendChild(button('stage-title', milestone.title, open, `Show ${milestone.title} in detail`));
     if (isComplete(milestone)) head.appendChild(icon('check-circle-fill'));
     card.appendChild(head);
     card.appendChild(el('div', 'stage-folder', milestone.unsorted ? `${milestone.folder}/` : milestone.name));
@@ -30,8 +52,7 @@ function stage(ctx, milestone) {
     if (due) card.appendChild(due);
 
     const figure = el('div', 'stage-figure');
-    figure.appendChild(el('span', 'stage-done', String(milestone.counts.done)));
-    figure.appendChild(el('span', 'stage-total', ` / ${total} done`));
+    figure.append(el('span', 'stage-done', String(milestone.counts.done)), el('span', 'stage-total', ` / ${total} done`));
     card.appendChild(figure);
     card.appendChild(statusBar(milestone.counts, total));
 
@@ -49,14 +70,17 @@ function stage(ctx, milestone) {
         card.appendChild(tags);
     }
 
-    const open = () => ctx.showMilestone(milestone.folder);
-    card.addEventListener('click', open);
-    card.addEventListener('keydown', event => {
-        if (event.key === 'Enter') {
-            event.preventDefault();
-            open();
-        }
+    if (total > 0) {
+        const list = el('ol', 'stage-plans');
+        for (const plan of milestone.plans) list.appendChild(planRow(ctx, plan));
+        card.appendChild(list);
+    }
+
+    // The background of a stage opens it too; its plans and buttons do their own thing.
+    card.addEventListener('click', event => {
+        if (!event.target.closest('button, .stage-plan')) open();
     });
+    ctx.drag.makeDropTarget(card, { folder: milestone.folder });
     return card;
 }
 
@@ -92,7 +116,7 @@ export default {
 
         if (stages.length > 0) line.appendChild(el('div', 'connector write-only'));
         const add = button('stage stage-add write-only', [icon('plus-lg'), el('span', '', 'Milestone')]);
-        add.addEventListener('click', () => inlinePrompt(add, 'Milestone name, then Enter', title => ctx.run.createMilestone(title)));
+        add.addEventListener('click', () => inlinePrompt(add, 'Milestone name, then Enter', ctx.createMilestone));
         line.appendChild(add);
 
         container.appendChild(line);

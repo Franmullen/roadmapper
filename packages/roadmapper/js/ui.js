@@ -46,6 +46,12 @@ export function statusBar(counts, total) {
     return bar;
 }
 
+export function statusDot(status) {
+    const dot = el('span', `status-dot status-fill-${status}`);
+    dot.title = STATUS_LABELS[status];
+    return dot;
+}
+
 export function statusChip(status) {
     return el('span', `status-chip status-${status}`, STATUS_LABELS[status]);
 }
@@ -93,7 +99,7 @@ export function inlinePrompt(trigger, placeholder, onSubmit) {
 export function addPlanButton(ctx, folder, lane) {
     const trigger = button('add-plan write-only', [icon('plus'), ' Add plan']);
     trigger.addEventListener('click', () =>
-        inlinePrompt(trigger, 'Plan title, then Enter', title => ctx.run.createPlan(folder, lane, title)));
+        inlinePrompt(trigger, 'Plan title, then Enter', title => ctx.createPlan(folder, lane, title)));
     return trigger;
 }
 
@@ -126,6 +132,47 @@ export function milestoneHeader(ctx, milestone, { detail = false } = {}) {
     return header;
 }
 
+// --- Dependencies ---
+
+const PROBLEMS = {
+    missing: 'no plan has this name',
+    ambiguous: 'more than one plan has this name',
+    later: 'scheduled in a later milestone',
+};
+
+export function describeDependency(dep) {
+    const state = dep.problem ? PROBLEMS[dep.problem] : dep.done ? 'done' : 'not done yet';
+    return `${dep.title} (${state})`;
+}
+
+// A plan's dependencies on a card: how many it is waiting on, flagged when one is wrong.
+export function dependencyChip(plan) {
+    if (plan.depends.length === 0) return null;
+    const problems = plan.depends.filter(dep => dep.problem).length;
+    const state = problems ? 'problem' : plan.waitingOn ? 'waiting' : 'ready';
+    const text = problems ? `${problems} to fix`
+        : plan.waitingOn ? `waits on ${plan.waitingOn}`
+            : `${plan.depends.length} done`;
+    const chip = el('span', `dep-chip dep-${state}`);
+    chip.append(icon(problems ? 'exclamation-triangle' : 'diagram-2'), ` ${text}`);
+    chip.title = ['Depends on:', ...plan.depends.map(describeDependency)].join('\n');
+    return chip;
+}
+
+// The dependencies as links to their plans, for the detail view.
+export function dependencyLinks(ctx, plan) {
+    const list = el('div', 'dep-links');
+    list.appendChild(el('span', 'dep-label', 'Depends on'));
+    for (const dep of plan.depends) {
+        const state = dep.problem ? 'problem' : dep.done ? 'ready' : 'waiting';
+        const link = button(`dep-link dep-${state}`, [icon(dep.done ? 'check2' : dep.problem ? 'exclamation-triangle' : 'hourglass-split'), ` ${dep.title}`],
+            dep.resource ? () => ctx.open(dep.resource) : null, describeDependency(dep));
+        link.disabled = !dep.resource;
+        list.appendChild(link);
+    }
+    return list;
+}
+
 // A plan card: status edge and chip, title, lane, file and task progress. Click opens; drag moves.
 export function planCard(ctx, plan, { showLane = true } = {}) {
     const item = el('li', `card status-edge-${plan.status}`);
@@ -137,6 +184,8 @@ export function planCard(ctx, plan, { showLane = true } = {}) {
     const tags = el('div', 'card-tags');
     tags.appendChild(statusChip(plan.status));
     if (showLane && plan.lane) tags.appendChild(el('span', 'lane-tag', plan.lane));
+    const deps = dependencyChip(plan);
+    if (deps) tags.appendChild(deps);
     if (plan.total > 0) {
         tags.appendChild(el('span', plan.done === plan.total ? 'card-tasks complete' : 'card-tasks', `${plan.done}/${plan.total}`));
     }

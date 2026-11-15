@@ -1,9 +1,12 @@
 // Every read and write Roadmapper makes to the project goes through here, using the Celbridge `cel.*`
 // tools. Views never touch files: they call these actions through the context main.js hands them.
+//
+// Each action reports its own failures to the user (a notification) and the console, and never throws,
+// except loadProject, whose caller decides what an unreadable folder means.
 
 import {
-    agentInstructions, buildProject, milestoneTemplate, nextMilestoneFolder, planTemplate, setFrontMatter,
-    uniqueFileName, upsertSection,
+    agentInstructions, buildProject, dropChanges, milestoneTemplate, nextMilestoneFolder, planTemplate,
+    projectResources, setFrontMatter, uniqueFileName, upsertSection,
 } from './model.js';
 
 const TREE_DEPTH = 8;
@@ -15,46 +18,53 @@ const parentFolder = resource => resource.slice(0, resource.lastIndexOf('/'));
 export class RootMissingError extends Error { }
 
 export function createActions(client, { notify }) {
-    const cel = () => client.cel;
-
-    async function readFile(resource) {
-        const result = JSON.parse(await cel().file.read(resource));
-        return result.content ?? result.Content ?? '';
+    // Calls a cel tool, e.g. call('file.read', 'plans/a.md'). Tools answer with JSON, or a bare "ok".
+    async function call(tool, ...args) {
+        const [namespace, name] = tool.split('.');
+        const result = await client.cel[namespace][name](...args);
+        if (typeof result !== 'string') return result;
+        try {
+            return JSON.parse(result);
+        } catch {
+            return result.trim();
+        }
     }
 
-    // Reads the board's folder into a project. Throws RootMissingError when the folder does not exist.
+    // Runs a change, reporting a failure as `message` instead of throwing. Returns whether it worked.
+    async function attempt(message, change) {
+        try {
+            await change();
+            return true;
+        } catch (e) {
+            console.error(`[Roadmapper] ${message}`, e);
+            await notify('error', message);
+            return false;
+        }
+    }
+
+    const readFile = async resource => (await call('file.read', resource)).content ?? '';
+
+    // Reads the board's folder into a project. Throws RootMissingError when the folder cannot be listed.
     async function loadProject(config) {
         let tree;
         try {
-            tree = JSON.parse(await cel().file.getTree(config.root, TREE_DEPTH, '', ''));
+            tree = await call('file.getTree', config.root, TREE_DEPTH, '', '');
         } catch (e) {
             throw new RootMissingError(String(e?.message ?? e));
         }
 
-        // A first pass with no contents names every file the project needs.
-        const outline = buildProject(tree, config.root, new Map(), config);
-        const resources = [
-            ...outline.plans.map(plan => plan.resource),
-            ...outline.milestones.filter(m => m.metaResource).map(m => m.metaResource),
-        ];
-
         const contents = new Map();
+        const resources = projectResources(tree, config.root);
         if (resources.length > 0) {
-            try {
-                const result = JSON.parse(await cel().file.readMany(JSON.stringify(resources)));
-                for (const entry of result.files ?? result.Files ?? []) {
-                    contents.set(stripRoot(entry.resource ?? entry.Resource ?? ''), entry.content ?? entry.Content ?? '');
-                }
-            } catch (e) {
-                console.warn('[Roadmapper] Could not read the plan files:', e);
-            }
+            const { files = [] } = await call('file.readMany', JSON.stringify(resources));
+            for (const file of files) contents.set(stripRoot(file.resource), file.content ?? '');
         }
         return buildProject(tree, config.root, contents, config);
     }
 
     async function openFile(resource) {
         try {
-            await cel().document.open(resource, '', false, true);
+            await call('document.open', resource, '', false, true);
         } catch (e) {
             console.warn(`[Roadmapper] Could not open ${resource}:`, e);
         }
@@ -62,65 +72,39 @@ export function createActions(client, { notify }) {
 
     async function revealFolder(folder) {
         try {
-            await cel().explorer.select(folder, true);
+            await call('explorer.select', folder, true);
         } catch (e) {
             console.warn(`[Roadmapper] Could not show ${folder}:`, e);
         }
     }
 
     // Writes front matter keys into a plan. The file is read fresh, so an edit made since the last scan is kept.
-    async function updatePlan(resource, updates) {
-        try {
-            const content = await readFile(resource);
-            await cel().file.write(resource, setFrontMatter(content, updates));
-            return true;
-        } catch (e) {
-            console.error('[Roadmapper] Could not update a plan:', e);
-            await notify('error', `Could not update ${baseName(resource)}.`);
-            return false;
-        }
+    function updatePlan(resource, updates) {
+        return attempt(`Could not update ${baseName(resource)}.`, async () => {
+            await call('file.write', resource, setFrontMatter(await readFile(resource), updates));
+        });
     }
 
-    async function movePlan(project, resource, folder) {
-        const name = baseName(resource);
-        const milestone = project.milestones.find(m => m.folder === folder);
-        if (project.plans.some(plan => plan.resource === `${folder}/${name}`)) {
-            await notify('warning', `${milestone?.title ?? folder} already has a file named ${name}.`);
-            return false;
-        }
-        try {
-            const result = await cel().explorer.move(resource, folder);
-            const text = typeof result === 'string' ? result.trim() : JSON.stringify(result);
-            if (text !== 'ok' && text !== '"ok"') {
-                const failure = JSON.parse(text);
-                const reason = failure.failedResources?.[0]?.message ?? 'the move was refused';
-                await notify('error', `Could not move ${name}: ${reason}`);
-                return false;
-            }
-            return true;
-        } catch (e) {
-            console.error('[Roadmapper] Move failed:', e);
-            await notify('error', `Could not move ${name}.`);
-            return false;
-        }
-    }
-
-    // A drop can change a plan's lane and status (front matter) and its milestone (folder). The front
-    // matter is written first, while the file is still where the scan found it.
+    // A drop can change a plan's lane and status (front matter) and its milestone (folder). A move that
+    // would collide is refused before anything is written; the front matter is written while the file is
+    // still where the scan found it, then the file moves.
     async function dropPlan(project, payload, target) {
-        const updates = {};
-        if (target.lane !== undefined && target.lane !== payload.lane) {
-            updates.lane = target.lane || null;
+        const { updates, moveTo } = dropChanges(payload, target);
+        const name = baseName(payload.resource);
+        if (moveTo && project.plans.some(plan => plan.resource === `${moveTo}/${name}`)) {
+            const milestone = project.milestones.find(m => m.folder === moveTo);
+            await notify('warning', `${milestone?.title ?? moveTo} already has a file named ${name}.`);
+            return;
         }
-        if (target.status && target.status !== payload.status) {
-            updates.status = target.status;
-        }
-        if (Object.keys(updates).length > 0) {
-            await updatePlan(payload.resource, updates);
-        }
-        if (target.folder && target.folder !== payload.from) {
-            await movePlan(project, payload.resource, target.folder);
-        }
+        if (Object.keys(updates).length > 0 && !await updatePlan(payload.resource, updates)) return;
+        if (!moveTo) return;
+
+        await attempt(`Could not move ${name}.`, async () => {
+            const result = await call('explorer.move', payload.resource, moveTo);
+            if (result !== 'ok') {
+                throw new Error(result?.failedResources?.[0]?.message ?? JSON.stringify(result));
+            }
+        });
     }
 
     function namesInFolder(project, folder) {
@@ -129,47 +113,32 @@ export function createActions(client, { notify }) {
             .map(plan => plan.name)];
     }
 
-    async function createPlan(project, folder, lane, title) {
+    function createPlan(project, folder, lane, title) {
         const resource = `${folder}/${uniqueFileName(namesInFolder(project, folder), title)}`;
-        try {
-            await cel().file.write(resource, planTemplate({ title, lane }));
-        } catch (e) {
-            console.error('[Roadmapper] Could not create a plan:', e);
-            await notify('error', `Could not create ${baseName(resource)}.`);
-        }
+        return attempt(`Could not create ${baseName(resource)}.`, () =>
+            call('file.write', resource, planTemplate({ title, lane })));
     }
 
-    async function createMilestone(project, config, title, rootMissing) {
+    function createMilestone(project, config, title, rootMissing) {
         const folderNames = project ? project.milestones.filter(m => !m.unsorted).map(m => m.name) : [];
         const folder = `${config.root}/${nextMilestoneFolder(folderNames, title)}`;
-        try {
-            if (rootMissing) {
-                await cel().explorer.createFolder(config.root);
-            }
-            await cel().explorer.createFolder(folder);
-            await cel().file.write(`${folder}/README.md`, milestoneTemplate(title));
-        } catch (e) {
-            console.error('[Roadmapper] Could not create a milestone:', e);
-            await notify('error', `Could not create the milestone "${title}".`);
-        }
+        return attempt(`Could not create the milestone "${title}".`, async () => {
+            if (rootMissing) await call('explorer.createFolder', config.root);
+            await call('explorer.createFolder', folder);
+            await call('file.write', `${folder}/README.md`, milestoneTemplate(title));
+        });
     }
 
     async function createMilestoneReadme(milestone) {
         const resource = `${milestone.folder}/README.md`;
-        try {
-            await cel().file.write(resource, milestoneTemplate(milestone.title));
+        if (await attempt('Could not create the milestone README.', () =>
+            call('file.write', resource, milestoneTemplate(milestone.title)))) {
             await openFile(resource);
-        } catch (e) {
-            console.error('[Roadmapper] Could not create a README:', e);
         }
     }
 
-    async function createRoot(config) {
-        try {
-            await cel().explorer.createFolder(config.root);
-        } catch (e) {
-            console.warn('[Roadmapper] Could not create the folder:', e);
-        }
+    function createRoot(config) {
+        return attempt(`Could not create the folder "${config.root}".`, () => call('explorer.createFolder', config.root));
     }
 
     // Adds or refreshes the Roadmapper section in the project's CLAUDE.md.
@@ -187,12 +156,8 @@ export function createActions(client, { notify }) {
             await notify('info', 'The Roadmapper guide in CLAUDE.md is up to date.', action);
             return;
         }
-        try {
-            await cel().file.write('CLAUDE.md', updated);
+        if (await attempt('Could not write CLAUDE.md.', () => call('file.write', 'CLAUDE.md', updated))) {
             await notify('info', existing ? 'Updated the Roadmapper guide in CLAUDE.md.' : 'Created CLAUDE.md with a guide for AI agents.', action);
-        } catch (e) {
-            console.error('[Roadmapper] Could not write CLAUDE.md:', e);
-            await notify('error', 'Could not write CLAUDE.md.');
         }
     }
 

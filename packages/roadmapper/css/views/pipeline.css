@@ -1,0 +1,231 @@
+/* Pipeline view (js/views/pipeline.js) */
+
+:root {
+    --rm-stage-width: 250px;
+}
+
+/* Stages stretch to the tallest, so the line reads as one row; connectors sit level with the titles. */
+.pipeline {
+    display: flex;
+    align-items: stretch;
+    padding: 28px 8px 8px;
+}
+
+.stage {
+    flex: none;
+    box-sizing: border-box;
+    width: var(--rm-stage-width);
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+    padding: 14px;
+    background: var(--cel-chrome-bg);
+    border: 1px solid var(--cel-panel-edge);
+    border-top: 4px solid var(--rm-todo);
+    border-radius: var(--cel-radius-card);
+    cursor: pointer;
+}
+
+.stage:hover,
+.stage:focus-visible {
+    border-color: var(--cel-accent);
+    outline: none;
+}
+
+.stage.complete { border-top-color: var(--rm-done); }
+.stage.has-blocked { border-top-color: var(--rm-blocked); }
+.stage.overdue { border-color: var(--rm-blocked); }
+
+.stage.unsorted {
+    border-style: dashed;
+    border-top-width: 1px;
+}
+
+.stage-head {
+    display: flex;
+    align-items: flex-start;
+    gap: 6px;
+}
+
+.stage-head .bi-check-circle-fill {
+    color: var(--rm-done);
+}
+
+.stage-title {
+    flex: 1;
+    min-width: 0;
+    min-height: 0;
+    padding: 0;
+    border: none;
+    background: none;
+    color: var(--cel-text-primary);
+    text-align: left;
+    cursor: pointer;
+    font-size: var(--cel-font-size-heading);
+    font-weight: var(--cel-font-weight-strong);
+    line-height: 1.25;
+    overflow-wrap: anywhere;
+}
+
+.stage-title:hover {
+    color: var(--cel-accent);
+    text-decoration: underline;
+}
+
+/* The plans in a stage: click to open, drag to another stage to move. */
+.stage-plans {
+    list-style: none;
+    margin: 6px -6px 0;
+    padding: 6px 0 0;
+    border-top: 1px solid var(--cel-divider);
+    display: flex;
+    flex-direction: column;
+    gap: 1px;
+}
+
+.stage-plan {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    padding: 3px 6px;
+    border-radius: var(--cel-radius-control);
+    font-size: var(--cel-font-size-small);
+    cursor: pointer;
+}
+
+.stage-plan:hover,
+.stage-plan:focus-visible {
+    background: var(--cel-content-bg);
+    color: var(--cel-accent);
+    outline: none;
+}
+
+.stage-plan.dragging {
+    opacity: 0.4;
+}
+
+.stage-plan-title {
+    flex: 1;
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.stage-plan .card-tasks {
+    margin-left: 0;
+}
+
+.stage-folder {
+    color: var(--cel-text-secondary);
+    font-family: var(--cel-font-mono);
+    font-size: var(--cel-font-size-small);
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.stage-figure {
+    margin-top: 4px;
+}
+
+.stage-done {
+    font-size: 28px;
+    font-weight: var(--cel-font-weight-strong);
+    font-variant-numeric: tabular-nums;
+}
+
+.stage-total {
+    color: var(--cel-text-secondary);
+}
+
+.stage-counts,
+.stage-lanes {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 4px 8px;
+    font-size: var(--cel-font-size-small);
+}
+
+.stage-count {
+    font-weight: var(--cel-font-weight-strong);
+}
+
+.lane-more {
+    color: var(--cel-text-secondary);
+}
+
+.stage-add {
+    align-self: flex-start;
+    width: 140px;
+    min-height: 120px;
+    align-items: center;
+    justify-content: center;
+    border: 1px dashed var(--cel-divider);
+    border-top-width: 1px;
+    background: none;
+    color: var(--cel-text-secondary);
+}
+
+.stage-add:hover {
+    color: var(--cel-accent);
+}
+
+.pipeline > .inline-input {
+    align-self: flex-start;
+    width: 200px;
+}
+
+.connector {
+    flex: none;
+    align-self: flex-start;
+    margin-top: 60px;
+    position: relative;
+    width: 44px;
+    height: 2px;
+    background: var(--cel-divider);
+}
+
+.connector::after {
+    content: '';
+    position: absolute;
+    right: -1px;
+    top: -5px;
+    border: 6px solid transparent;
+    border-left: 8px solid var(--cel-divider);
+    border-right: none;
+}
+
+.pipeline-gap {
+    flex: none;
+    width: 36px;
+}
+
+.today-marker {
+    flex: none;
+    position: relative;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    align-self: stretch;
+    width: 0;
+    margin: 0 4px;
+}
+
+.today-line {
+    flex: 1;
+    width: 2px;
+    background: var(--cel-accent);
+}
+
+.today-label {
+    position: absolute;
+    top: -22px;
+    padding: 1px 6px;
+    border-radius: 999px;
+    background: var(--cel-accent);
+    color: var(--cel-content-bg);
+    font-size: var(--cel-font-size-small);
+    font-weight: var(--cel-font-weight-strong);
+    white-space: nowrap;
+}

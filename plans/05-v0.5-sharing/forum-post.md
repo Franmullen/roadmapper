@@ -1,6 +1,7 @@
 ---
 status: todo
 lane: community
+depends: map-view, pipeline-plan-list
 ---
 # Forum post
 

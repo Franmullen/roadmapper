@@ -1,9 +1,7 @@
-/* Roadmapper. Built from the host's design tokens, so it follows the light and dark themes. */
+/* Roadmapper: the page, toolbar, canvas and the pieces every view shares. Each view's own styles are in
+   css/views/<id>.css. Built from the host's design tokens, so it follows the light and dark themes. */
 
 :root {
-    --rm-column-width: 260px;
-    --rm-lane-label-width: 140px;
-    --rm-stage-width: 230px;
     --rm-gap: 12px;
 
     --rm-todo: #64748b;
@@ -200,196 +198,6 @@ body.read-only .write-only {
 .drop-target {
     outline: 2px solid var(--cel-accent);
     outline-offset: -2px;
-}
-
-/* --- Pipeline view --- */
-
-.pipeline {
-    display: flex;
-    align-items: center;
-    padding: 8px;
-}
-
-.stage {
-    flex: none;
-    box-sizing: border-box;
-    width: var(--rm-stage-width);
-    display: flex;
-    flex-direction: column;
-    gap: 6px;
-    padding: 14px;
-    background: var(--cel-chrome-bg);
-    border: 1px solid var(--cel-panel-edge);
-    border-top: 4px solid var(--rm-todo);
-    border-radius: var(--cel-radius-card);
-    cursor: pointer;
-}
-
-.stage:hover,
-.stage:focus-visible {
-    border-color: var(--cel-accent);
-    outline: none;
-}
-
-.stage.complete { border-top-color: var(--rm-done); }
-.stage.has-blocked { border-top-color: var(--rm-blocked); }
-.stage.overdue { border-color: var(--rm-blocked); }
-
-.stage.unsorted {
-    border-style: dashed;
-    border-top-width: 1px;
-}
-
-.stage-head {
-    display: flex;
-    align-items: flex-start;
-    gap: 6px;
-}
-
-.stage-head .bi-check-circle-fill {
-    color: var(--rm-done);
-}
-
-.stage-title {
-    flex: 1;
-    font-size: var(--cel-font-size-heading);
-    font-weight: var(--cel-font-weight-strong);
-    line-height: 1.25;
-    overflow-wrap: anywhere;
-}
-
-.stage-folder {
-    color: var(--cel-text-secondary);
-    font-family: var(--cel-font-mono);
-    font-size: var(--cel-font-size-small);
-    overflow: hidden;
-    text-overflow: ellipsis;
-    white-space: nowrap;
-}
-
-.stage-figure {
-    margin-top: 4px;
-}
-
-.stage-done {
-    font-size: 28px;
-    font-weight: var(--cel-font-weight-strong);
-    font-variant-numeric: tabular-nums;
-}
-
-.stage-total {
-    color: var(--cel-text-secondary);
-}
-
-.stage-counts,
-.stage-lanes {
-    display: flex;
-    flex-wrap: wrap;
-    gap: 4px 8px;
-    font-size: var(--cel-font-size-small);
-}
-
-.stage-count {
-    font-weight: var(--cel-font-weight-strong);
-}
-
-.lane-more {
-    color: var(--cel-text-secondary);
-}
-
-.stage-add {
-    width: 140px;
-    min-height: 120px;
-    align-items: center;
-    justify-content: center;
-    border: 1px dashed var(--cel-divider);
-    border-top-width: 1px;
-    background: none;
-    color: var(--cel-text-secondary);
-}
-
-.stage-add:hover {
-    color: var(--cel-accent);
-}
-
-.pipeline > .inline-input {
-    width: 200px;
-}
-
-.connector {
-    flex: none;
-    position: relative;
-    width: 44px;
-    height: 2px;
-    background: var(--cel-divider);
-}
-
-.connector::after {
-    content: '';
-    position: absolute;
-    right: -1px;
-    top: -5px;
-    border: 6px solid transparent;
-    border-left: 8px solid var(--cel-divider);
-    border-right: none;
-}
-
-.pipeline-gap {
-    flex: none;
-    width: 36px;
-}
-
-.today-marker {
-    flex: none;
-    position: relative;
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    align-self: stretch;
-    width: 0;
-    margin: 0 4px;
-}
-
-.today-line {
-    flex: 1;
-    width: 2px;
-    background: var(--cel-accent);
-}
-
-.today-label {
-    position: absolute;
-    top: -22px;
-    padding: 1px 6px;
-    border-radius: 999px;
-    background: var(--cel-accent);
-    color: var(--cel-content-bg);
-    font-size: var(--cel-font-size-small);
-    font-weight: var(--cel-font-weight-strong);
-    white-space: nowrap;
-}
-
-/* --- Board view --- */
-
-.board-columns {
-    display: flex;
-    align-items: flex-start;
-    gap: var(--rm-gap);
-    padding: var(--rm-gap);
-}
-
-.column {
-    flex: 0 0 var(--rm-column-width);
-    display: flex;
-    flex-direction: column;
-    background: var(--cel-chrome-bg);
-    border: 1px solid var(--cel-panel-edge);
-    border-radius: var(--cel-radius-card);
-    box-sizing: border-box;
-}
-
-.column.unsorted,
-.lane-column-head.unsorted {
-    border-style: dashed;
 }
 
 /* --- Milestone header --- */
@@ -599,6 +407,41 @@ body.read-only .write-only {
     margin: 4px 8px 8px;
 }
 
+/* --- Status dots and dependencies --- */
+
+.status-dot {
+    flex: none;
+    display: inline-block;
+    box-sizing: border-box;
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+}
+
+/* A plan not started is an open ring rather than a faint dot. */
+.status-dot.status-fill-todo {
+    opacity: 1;
+    background: none;
+    border: 1.5px solid var(--rm-todo);
+}
+
+.dep-chip {
+    display: inline-flex;
+    align-items: center;
+    gap: 3px;
+    white-space: nowrap;
+    color: var(--cel-text-secondary);
+}
+
+.dep-chip.dep-waiting {
+    color: var(--rm-doing);
+}
+
+.dep-chip.dep-problem {
+    color: var(--rm-blocked);
+    font-weight: var(--cel-font-weight-strong);
+}
+
 /* --- Progress and status bars --- */
 
 .progress {
@@ -634,192 +477,6 @@ body.read-only .write-only {
 .status-fill-review { background: var(--rm-review); }
 .status-fill-done { background: var(--rm-done); }
 .status-fill-blocked { background: var(--rm-blocked); }
-
-/* --- Lanes --- */
-
-.lanes-grid {
-    display: grid;
-    gap: 6px;
-    width: max-content;
-    padding: var(--rm-gap);
-}
-
-.lane-column-head {
-    background: var(--cel-chrome-bg);
-    border: 1px solid var(--cel-panel-edge);
-    border-radius: var(--cel-radius-card);
-}
-
-.lane-label {
-    padding: 10px;
-    background: var(--cel-chrome-bg);
-    border: 1px solid var(--cel-panel-edge);
-    border-radius: var(--cel-radius-card);
-}
-
-.lane-label.no-lane {
-    border-style: dashed;
-}
-
-.lane-name {
-    font-weight: var(--cel-font-weight-strong);
-    overflow-wrap: anywhere;
-}
-
-.lane-label.no-lane .lane-name {
-    color: var(--cel-text-secondary);
-}
-
-.lane-stats {
-    margin-top: 4px;
-    color: var(--cel-text-secondary);
-    font-size: var(--cel-font-size-small);
-}
-
-.lane-cell {
-    display: flex;
-    flex-direction: column;
-    min-height: 56px;
-    padding-top: 8px;
-    background: var(--cel-chrome-bg);
-    border: 1px solid var(--cel-divider);
-    border-radius: var(--cel-radius-card);
-}
-
-.lane-cell .add-plan {
-    opacity: 0;
-}
-
-.lane-cell:hover .add-plan,
-.lane-cell .add-plan:focus-visible {
-    opacity: 1;
-}
-
-/* --- Milestone view --- */
-
-.detail {
-    max-width: 880px;
-}
-
-.back-button {
-    display: inline-flex;
-    align-items: center;
-    gap: 4px;
-    margin-bottom: 8px;
-}
-
-.detail .column-header {
-    padding: 0;
-}
-
-.detail h1 {
-    flex: 1;
-    margin: 0;
-    font-size: var(--cel-font-size-heading);
-}
-
-.detail .progress {
-    max-width: 320px;
-}
-
-.description {
-    margin: 10px 0 0;
-    color: var(--cel-text-secondary);
-}
-
-.detail-actions {
-    display: flex;
-    align-items: center;
-    gap: 8px;
-    margin: 12px 0;
-}
-
-.detail-actions .add-plan {
-    margin: 0;
-}
-
-.status-groups {
-    display: flex;
-    flex-direction: column;
-    gap: 10px;
-}
-
-.status-group {
-    padding: 8px 10px;
-    background: var(--cel-chrome-bg);
-    border: 1px solid var(--cel-panel-edge);
-    border-radius: var(--cel-radius-card);
-}
-
-.status-group h2 {
-    display: flex;
-    align-items: center;
-    gap: 8px;
-    margin: 0 0 6px;
-    font-size: var(--cel-font-size-base);
-}
-
-.detail-list {
-    list-style: none;
-    margin: 0;
-    padding: 0;
-    display: flex;
-    flex-direction: column;
-    gap: 4px;
-}
-
-.detail-row {
-    display: grid;
-    grid-template-columns: minmax(0, 1fr) auto;
-    grid-template-areas: "title status" "meta status";
-    align-items: center;
-    gap: 2px 12px;
-    padding: 6px 8px;
-    background: var(--cel-content-bg);
-    border: 1px solid var(--cel-divider);
-    border-radius: var(--cel-radius-control);
-}
-
-.detail-title {
-    grid-area: title;
-    justify-self: start;
-    padding: 0;
-    border: none;
-    background: none;
-    min-height: 0;
-    text-align: left;
-    color: var(--cel-text-primary);
-    font-weight: var(--cel-font-weight-strong);
-    cursor: pointer;
-}
-
-.detail-title:hover {
-    color: var(--cel-accent);
-    text-decoration: underline;
-}
-
-.detail-meta {
-    grid-area: meta;
-    display: flex;
-    flex-wrap: wrap;
-    align-items: center;
-    gap: 4px 10px;
-    font-size: var(--cel-font-size-small);
-}
-
-.detail-meta .card-file,
-.detail-meta .card-tasks {
-    margin: 0;
-}
-
-.derived {
-    color: var(--cel-text-secondary);
-    font-style: italic;
-}
-
-.status-select {
-    grid-area: status;
-}
 
 /* --- Dragging (pointer-based, see js/drag.js) --- */
 

@@ -5,7 +5,7 @@ entry-point = "index.html"
 display-name = "Roadmapper_Editor_Name"
 description = "Roadmapper_Editor_Description"
 
-# A .roadmap file holds the board's settings: which folder to show, and the lane order.
+# A .roadmap file holds the board's settings: which folder to show, the lane order, and how it first opens.
 # The milestones and plans are the folders and Markdown files inside that folder.
 [[file-types]]
 extension = ".roadmap"

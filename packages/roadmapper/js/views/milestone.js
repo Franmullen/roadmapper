@@ -3,7 +3,7 @@
 // Opened from the other views; ctx.milestone names which milestone to show.
 
 import { STATUSES, STATUS_LABELS } from '../model.js';
-import { addPlanButton, button, dragPayload, el, icon, milestoneHeader, statusChip } from '../ui.js';
+import { addPlanButton, button, dependencyChip, dependencyLinks, dragPayload, el, icon, milestoneHeader, statusChip } from '../ui.js';
 
 function planRow(ctx, plan) {
     const row = el('li', 'detail-row');
@@ -16,8 +16,14 @@ function planRow(ctx, plan) {
     if (plan.total > 0) {
         meta.appendChild(el('span', plan.done === plan.total ? 'card-tasks complete' : 'card-tasks', `${plan.done}/${plan.total} tasks`));
     }
+    const deps = dependencyChip(plan);
+    if (deps) meta.appendChild(deps);
+    if (plan.dependents.length) {
+        meta.appendChild(el('span', 'derived', `needed by ${plan.dependents.length} plan${plan.dependents.length === 1 ? '' : 's'}`));
+    }
     if (!plan.statusExplicit) meta.appendChild(el('span', 'derived', 'status from checkboxes'));
     row.appendChild(meta);
+    if (plan.depends.length) row.appendChild(dependencyLinks(ctx, plan));
 
     const select = el('select', 'status-select');
     select.title = 'Change status';
@@ -28,7 +34,7 @@ function planRow(ctx, plan) {
         option.selected = status === plan.status;
         select.appendChild(option);
     }
-    select.addEventListener('change', () => ctx.run.updatePlan(plan.resource, { status: select.value }));
+    select.addEventListener('change', () => ctx.updatePlan(plan.resource, { status: select.value }));
     row.appendChild(select);
 
     ctx.drag.makeDraggable(row, dragPayload(plan));
@@ -55,7 +61,7 @@ export default {
                     () => ctx.open(milestone.metaResource)));
             } else {
                 actions.appendChild(button('toolbar-button write-only', [icon('file-earmark-plus'), ' Add milestone README'],
-                    () => ctx.run.createMilestoneReadme(milestone)));
+                    () => ctx.createMilestoneReadme(milestone)));
             }
         }
         actions.appendChild(addPlanButton(ctx, milestone.folder, ''));

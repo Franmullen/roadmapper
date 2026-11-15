@@ -8,7 +8,11 @@
 //     lanes: ['core', 'ui', ...],             // display order
 //     milestones: [{ folder, name, title, due, description, metaResource, unsorted, truncated,
 //                    plans: [...], counts: { todo, doing, review, done, blocked } }],
-//     plans: [{ resource, name, path, milestone, title, status, statusExplicit, lane, done, total }],
+//     plans: [{ resource, name, path, milestone, title, status, statusExplicit, lane, done, total,
+//               dependsOn: ['ref'],                       // the raw `depends:` list
+//               depends: [{ ref, resource, title, done, problem }],  // resolved; problem: missing, ambiguous, later
+//               dependents: [resource],                   // plans that depend on this one
+//               waitingOn }],                             // how many dependencies are not done yet
 //   }
 
 export const STATUSES = ['todo', 'doing', 'review', 'done', 'blocked'];
@@ -26,11 +30,10 @@ const MILESTONE_FILES = ['readme.md', '_milestone.md'];
 
 // --- Settings (.roadmap file) ---
 
-export const VIEWS = ['pipeline', 'board'];
-export const DEFAULT_VIEW = 'pipeline';
-
+// `view` and `showLanes` only say how the board first opens. Switching on the board does not write them
+// back (the editor keeps that in its own state), so using the board does not churn a shared file.
 export function parseConfig(text) {
-    const config = { root: 'plans', lanes: [], showLanes: false, view: DEFAULT_VIEW };
+    const config = { root: 'plans', lanes: [], showLanes: false, view: null };
     if (!text || !text.trim()) {
         return config;
     }
@@ -42,13 +45,13 @@ export function parseConfig(text) {
         config.lanes = [...new Set(raw.lanes.filter(lane => typeof lane === 'string').map(lane => lane.trim()).filter(Boolean))];
     }
     config.showLanes = raw.showLanes === true;
-    if (VIEWS.includes(raw.view)) config.view = raw.view;
+    if (typeof raw.view === 'string' && raw.view.trim()) config.view = raw.view.trim();
     return config;
 }
 
 export function serializeConfig(config) {
     const out = { root: config.root };
-    if (config.view !== DEFAULT_VIEW) out.view = config.view;
+    if (config.view) out.view = config.view;
     if (config.lanes.length > 0) out.lanes = config.lanes;
     if (config.showLanes) out.showLanes = true;
     return JSON.stringify(out, null, 2) + '\n';
@@ -63,41 +66,65 @@ export function normalizeFolder(folder) {
 
 const FRONT_MATTER = /^---[ \t]*\r?\n([\s\S]*?)\r?\n?---[ \t]*(?:\r?\n|$)/;
 
-// Reads simple "key: value" front matter. Values are kept as trimmed strings without surrounding quotes.
+const KEY_LINE = /^([A-Za-z0-9_-]+)\s*:\s*(.*)$/;
+// A line that continues the key above it: indented, or a "- item" of a block list.
+const CONTINUATION = /^(\s+\S|-\s)/;
+
+const withoutBom = text => (text ?? '').replace(/^﻿/, '');
+
+function unquote(value) {
+    return /^(['"]).*\1$/.test(value) ? value.slice(1, -1) : value;
+}
+
+// Reads simple "key: value" front matter. Values are trimmed strings without surrounding quotes. A block
+// list ("key:" then "- item" lines) reads as its items joined with ", ", the same as an inline list.
 export function parseFrontMatter(text) {
-    const source = (text ?? '').replace(/^﻿/, '');
+    const source = withoutBom(text);
     const match = source.match(FRONT_MATTER);
     if (!match) {
         return { data: {}, body: source, hasFrontMatter: false };
     }
     const data = {};
+    let listKey = null;
     for (const line of match[1].split(/\r?\n/)) {
-        const pair = line.match(/^([A-Za-z0-9_-]+)\s*:\s*(.*)$/);
+        const item = line.match(/^\s*-\s+(.*)$/);
+        if (item && listKey) {
+            const value = unquote(item[1].replace(/\s+#.*$/, '').trim());
+            data[listKey] = data[listKey] ? `${data[listKey]}, ${value}` : value;
+            continue;
+        }
+        const pair = line.match(KEY_LINE);
         if (!pair) continue;
-        let value = pair[2].replace(/\s+#.*$/, '').trim();
-        if (/^(['"]).*\1$/.test(value)) value = value.slice(1, -1);
-        data[pair[1].toLowerCase()] = value;
+        const key = pair[1].toLowerCase();
+        data[key] = unquote(pair[2].replace(/\s+#.*$/, '').trim());
+        listKey = data[key] === '' ? key : null;
     }
     return { data, body: source.slice(match[0].length), hasFrontMatter: true };
+}
+
+// "[a, b]", "a, b" and a block list all read as ['a', 'b'].
+export function parseList(value) {
+    return (value ?? '').replace(/^\[|\]$/g, '').split(',').map(item => unquote(item.trim())).filter(Boolean);
 }
 
 // Sets or removes front matter keys, leaving every other line of the file as it was.
 // A null or empty value removes the key. Front matter is added when the file has none.
 export function setFrontMatter(text, updates) {
-    const source = (text ?? '').replace(/^﻿/, '');
+    const source = withoutBom(text);
     const eol = source.includes('\r\n') ? '\r\n' : '\n';
     const match = source.match(FRONT_MATTER);
     let lines = match ? match[1].split(/\r?\n/) : [];
     const body = match ? source.slice(match[0].length) : source;
 
     for (const [key, value] of Object.entries(updates)) {
-        const index = lines.findIndex(line => new RegExp(`^${key}\\s*:`, 'i').test(line));
+        const index = lines.findIndex(line => line.match(KEY_LINE)?.[1].toLowerCase() === key.toLowerCase());
         const empty = value === null || value === undefined || String(value).trim() === '';
-        if (empty) {
-            if (index >= 0) lines.splice(index, 1);
-        } else if (index >= 0) {
-            lines[index] = `${key}: ${value}`;
-        } else {
+        if (index >= 0) {
+            // The old value goes, with the items of a block list under it.
+            let end = index + 1;
+            while (end < lines.length && CONTINUATION.test(lines[end])) end++;
+            lines.splice(index, end - index, ...(empty ? [] : [`${key}: ${value}`]));
+        } else if (!empty) {
             lines.push(`${key}: ${value}`);
         }
     }
@@ -153,6 +180,7 @@ export function summarizeMarkdown(content, fileName) {
         status: explicit ?? deriveStatus(done, total),
         statusExplicit: explicit !== null,
         lane: (data.lane ?? '').trim(),
+        dependsOn: parseList(data.depends),
     };
 }
 
@@ -183,52 +211,57 @@ function isMilestoneFile(node) {
 
 const byName = (a, b) => a.name.localeCompare(b.name, undefined, { numeric: true, sensitivity: 'base' });
 
-// Builds the columns from a file_get_tree result rooted at the board's folder.
-// Markdown files directly in the root go in a leading "Unsorted" column, shown only when it has cards.
-// Each subfolder is a milestone column, in natural name order, holding the Markdown files anywhere below it.
-// A README.md or _milestone.md directly in a milestone folder (or the root) describes it and is not a card.
-export function buildColumns(tree, root) {
+// The shape of the board from a file_get_tree result rooted at the board's folder, before any file is read.
+// Markdown files directly in the root form a leading "Unsorted" milestone, present only when there are some.
+// Each subfolder is a milestone, in natural name order, holding the Markdown files anywhere below it.
+// A README.md or _milestone.md directly in a milestone folder (or the root) describes it and is not a plan.
+export function scanTree(tree, root) {
     const children = tree?.children ?? [];
-    const columns = [];
+    const milestones = [];
 
     const loose = children.filter(node => isMarkdown(node) && !isMilestoneFile(node)).sort(byName);
     if (loose.length > 0) {
-        columns.push({
+        milestones.push({
             name: 'Unsorted',
             folder: root,
             unsorted: true,
+            truncated: false,
             metaResource: null,
-            cards: loose.map(file => ({ name: file.name, resource: `${root}/${file.name}` })),
+            files: loose.map(file => ({ name: file.name, resource: `${root}/${file.name}` })),
         });
     }
 
     for (const folder of children.filter(isFolder).sort(byName)) {
         const folderKey = `${root}/${folder.name}`;
         const meta = (folder.children ?? []).filter(node => isMarkdown(node) && isMilestoneFile(node)).sort(byName)[0];
-        columns.push({
+        milestones.push({
             name: folder.name,
             folder: folderKey,
             unsorted: false,
             truncated: folder.truncated === true,
             metaResource: meta ? `${folderKey}/${meta.name}` : null,
-            cards: collectMarkdown(folder, folderKey, true),
+            files: collectMarkdown(folder, folderKey, true),
         });
     }
-
-    return columns;
+    return milestones;
 }
 
 function collectMarkdown(folder, prefix, topLevel) {
-    const cards = [];
+    const files = [];
     for (const child of [...(folder.children ?? [])].sort(byName)) {
         const key = `${prefix}/${child.name}`;
         if (isFolder(child)) {
-            cards.push(...collectMarkdown(child, key, false));
+            files.push(...collectMarkdown(child, key, false));
         } else if (isMarkdown(child) && !(topLevel && isMilestoneFile(child))) {
-            cards.push({ name: child.name, resource: key });
+            files.push({ name: child.name, resource: key });
         }
     }
-    return cards;
+    return files;
+}
+
+// Every file buildProject needs the text of: the milestone READMEs and the plans.
+export function projectResources(tree, root) {
+    return scanTree(tree, root).flatMap(m => [...(m.metaResource ? [m.metaResource] : []), ...m.files.map(f => f.resource)]);
 }
 
 // Display name for a milestone folder: "02-first-release" reads as "First release".
@@ -270,35 +303,83 @@ export function isMilestoneOverdue(milestone, today) {
     return isOverdue(milestone.due, today, isComplete(milestone));
 }
 
-// Builds the project every view draws from. `contents` maps resource keys to file text, for every plan
-// and milestone README the tree names.
+// Builds the project every view draws from. `contents` maps resource keys to file text for the files
+// projectResources names; a missing entry reads as an empty file.
 export function buildProject(tree, root, contents, config) {
-    const milestones = buildColumns(tree, root).map(column => {
-        const meta = column.metaResource
-            ? summarizeMilestone(contents.get(column.metaResource))
+    const milestones = scanTree(tree, root).map(scanned => {
+        const meta = scanned.metaResource
+            ? summarizeMilestone(contents.get(scanned.metaResource))
             : { title: null, due: null, description: '' };
-        const plans = column.cards.map(card => ({
-            resource: card.resource,
-            name: card.name,
-            path: card.resource.slice(column.folder.length + 1),
-            milestone: column.folder,
-            ...summarizeMarkdown(contents.get(card.resource), card.name),
+        const plans = scanned.files.map(file => ({
+            resource: file.resource,
+            name: file.name,
+            path: file.resource.slice(scanned.folder.length + 1),
+            milestone: scanned.folder,
+            ...summarizeMarkdown(contents.get(file.resource), file.name),
         }));
         return {
-            folder: column.folder,
-            name: column.name,
-            title: column.unsorted ? 'Unsorted' : (meta.title || displayName(column.name)),
+            folder: scanned.folder,
+            name: scanned.name,
+            title: scanned.unsorted ? 'Unsorted' : (meta.title || displayName(scanned.name)),
             due: meta.due,
             description: meta.description,
-            metaResource: column.metaResource,
-            unsorted: column.unsorted,
-            truncated: column.truncated === true,
+            metaResource: scanned.metaResource,
+            unsorted: scanned.unsorted,
+            truncated: scanned.truncated,
             plans,
             counts: statusCounts(plans),
         };
     });
     const plans = milestones.flatMap(milestone => milestone.plans);
+    linkDependencies(milestones, root);
     return { root, milestones, plans, lanes: laneOrder(config.lanes, plans) };
+}
+
+// --- Dependencies ---
+
+// A `depends:` entry names another plan by file name ("login") or by path inside the root
+// ("02-beta/login"), with or without ".md". A bare file name must be unique to resolve.
+function referenceKey(ref, root) {
+    let key = ref.trim().replace(/\\/g, '/').replace(/^project:/, '').replace(/^\.?\//, '').replace(/\.md$/i, '');
+    if (key.toLowerCase().startsWith(`${root.toLowerCase()}/`)) key = key.slice(root.length + 1);
+    return key.toLowerCase();
+}
+
+// Resolves each plan's dependsOn into `depends`, and fills `dependents` and `waitingOn`. A dependency
+// scheduled in a later milestone than the plan that needs it is a `later` problem.
+function linkDependencies(milestones, root) {
+    const order = new Map(milestones.map((m, index) => [m.folder, m.unsorted ? null : index]));
+    const plans = milestones.flatMap(m => m.plans);
+    const byKey = new Map();
+    const add = (key, plan) => byKey.set(key, [...(byKey.get(key) ?? []), plan]);
+    for (const plan of plans) {
+        const full = plan.resource.slice(root.length + 1).replace(/\.md$/i, '').toLowerCase();
+        const base = plan.name.replace(/\.md$/i, '').toLowerCase();
+        add(full, plan);
+        if (base !== full) add(base, plan);
+        plan.dependents = [];
+    }
+
+    for (const plan of plans) {
+        plan.depends = plan.dependsOn.map(ref => {
+            const matches = (byKey.get(referenceKey(ref, root)) ?? []).filter(other => other !== plan);
+            const target = matches.length === 1 ? matches[0] : null;
+            let problem = null;
+            if (matches.length === 0) problem = 'missing';
+            else if (!target) problem = 'ambiguous';
+            else if (order.get(target.milestone) !== null && order.get(plan.milestone) !== null
+                && order.get(target.milestone) > order.get(plan.milestone)) problem = 'later';
+            if (target) target.dependents.push(plan.resource);
+            return {
+                ref,
+                resource: target?.resource ?? null,
+                title: target?.title ?? ref,
+                done: target?.status === 'done',
+                problem,
+            };
+        });
+        plan.waitingOn = plan.depends.filter(dep => dep.resource && !dep.done).length;
+    }
 }
 
 // Where the "Today" marker sits in the pipeline: before the first dated milestone due after today (a
@@ -308,6 +389,18 @@ export function todayMarkerIndex(milestones, today) {
     if (!milestones.some(milestone => milestone.due)) return null;
     const index = milestones.findIndex(milestone => milestone.due && milestone.due > today);
     return index === -1 ? milestones.length : index;
+}
+
+// --- Moving plans ---
+
+// What dropping a plan on a target changes. A target may name a milestone folder, a lane ('' for no
+// lane) and a status. Returns the front matter updates and the folder to move to (null to stay put).
+export function dropChanges(payload, target) {
+    const updates = {};
+    if (target.lane !== undefined && target.lane !== payload.lane) updates.lane = target.lane || null;
+    if (target.status && target.status !== payload.status) updates.status = target.status;
+    const moveTo = target.folder && target.folder !== payload.from ? target.folder : null;
+    return { updates, moveTo };
 }
 
 // --- Creating plans and milestones ---
@@ -370,6 +463,7 @@ export function agentInstructions(config, roadmapResource) {
         `- **Milestones** are the folders directly inside \`${config.root}/\`, ordered by a number prefix (\`01-…\`, \`02-…\`). To add one, create the next numbered folder with a \`README.md\` whose \`# heading\` names it, whose first paragraph describes it, and whose front matter may set \`due: YYYY-MM-DD\`.`,
         '- **Plans** are the other `.md` files in a milestone folder, one per piece of work. Start each with a `# Title` and list steps as `- [ ]` checkboxes.',
         `- **Front matter** on a plan sets \`status:\` (one of ${STATUSES.map(s => `\`${s}\``).join(', ')}) and \`lane:\` (a parallel workstream; current lanes: ${lanes}).`,
+        '- **Dependencies:** `depends: other-plan, 02-beta/login` names plans that must be done first, by file name (without `.md`) or by path inside the root. Keep a dependency in the same milestone or an earlier one.',
         '- **When you work on a plan**, set `status: doing`, tick each checkbox (`- [x]`) as you finish it, and set `status: done` when all of it is complete. Use `status: blocked` with a sentence saying why.',
         '- **To reschedule** a plan, move its file into another milestone folder. Keep file names lower-case with hyphens.',
         '- The board updates by itself when these files change.',

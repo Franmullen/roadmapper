@@ -179,8 +179,10 @@ export function createViewport(container, { onChange = () => { } } = {}) {
     };
 }
 
-// The floating zoom controls: minus, percentage (click to reset to 100%), plus, fit.
-export function createZoomControls(viewport) {
+// The floating zoom controls: minus, percentage (click to reset to 100%), plus, fit. Made before the
+// viewport (whose onChange updates them) and connected to it after.
+export function createZoomControls() {
+    let viewport = null;
     const box = document.createElement('div');
     box.className = 'rm-zoom';
 
@@ -191,7 +193,7 @@ export function createZoomControls(viewport) {
         element.title = title;
         element.setAttribute('aria-label', title);
         element.innerHTML = `<i class="bi bi-${iconName}"></i>`;
-        element.addEventListener('click', onClick);
+        element.addEventListener('click', () => viewport && onClick());
         return element;
     };
 
@@ -199,7 +201,7 @@ export function createZoomControls(viewport) {
     label.type = 'button';
     label.className = 'rm-zoom-label';
     label.title = 'Zoom to 100%';
-    label.addEventListener('click', () => viewport.zoomBy(1 / viewport.scale));
+    label.addEventListener('click', () => viewport?.zoomBy(1 / viewport.scale));
 
     box.append(
         button('dash-lg', 'Zoom out (-)', () => viewport.zoomBy(1 / 1.25)),
@@ -210,6 +212,7 @@ export function createZoomControls(viewport) {
 
     return {
         element: box,
+        connect: target => { viewport = target; },
         update: state => { label.textContent = `${Math.round(state.scale * 100)}%`; },
     };
 }

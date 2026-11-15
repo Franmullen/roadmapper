@@ -70,7 +70,7 @@ export default {
     zoomable: true,
     fitAlign: 'top',
     render(container, project, ctx) {
-        if (ctx.config.showLanes) renderLanes(container, project, ctx);
+        if (ctx.ui.showLanes) renderLanes(container, project, ctx);
         else renderColumns(container, project, ctx);
     },
 };
