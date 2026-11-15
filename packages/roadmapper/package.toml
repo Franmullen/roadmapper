@@ -3,7 +3,7 @@
 [package]
 name = "roadmapper"
 title = "Roadmapper"
-package-version = "0.1.0"
+package-version = "0.2.0"
 
 [contributes]
 editors = ["roadmapper.editor.toml"]

@@ -1,6 +1,8 @@
+---
+status: done
+lane: core
+---
 # Live refresh
-
-The board watches its root folder, so edits by people, scripts or agents show up straight away.
 
 ## Tasks
 

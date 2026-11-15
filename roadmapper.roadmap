@@ -1,3 +1,10 @@
 {
-  "root": "plans"
+  "root": "plans",
+  "lanes": [
+    "core",
+    "ui",
+    "agents",
+    "community"
+  ],
+  "showLanes": true
 }

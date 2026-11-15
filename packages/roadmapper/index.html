@@ -17,6 +17,19 @@
         </label>
         <span id="summary"></span>
         <span class="spacer"></span>
+        <button type="button" id="add-milestone" class="toolbar-button write-only" title="Add a milestone folder">
+            <i class="bi bi-plus-lg"></i><span>Milestone</span>
+        </button>
+        <button type="button" id="add-lane" class="toolbar-button write-only" title="Add a lane" hidden>
+            <i class="bi bi-plus-lg"></i><span>Lane</span>
+        </button>
+        <button type="button" id="toggle-lanes" class="toolbar-button" aria-pressed="false" title="Show lanes for parallel work">
+            <i class="bi bi-distribute-vertical"></i><span>Lanes</span>
+        </button>
+        <button type="button" id="agent-instructions" class="cel-icon-button write-only"
+                title="Add Roadmapper instructions for AI agents to CLAUDE.md" aria-label="Add agent instructions">
+            <i class="bi bi-robot"></i>
+        </button>
         <button type="button" id="refresh" class="cel-icon-button" title="Refresh" aria-label="Refresh">
             <i class="bi bi-arrow-clockwise"></i>
         </button>
