@@ -11,10 +11,10 @@ import {
     nextMilestoneFolder, normalizeFolder, parseConfig, planTemplate, serializeConfig, setFrontMatter,
     summarizeMarkdown, summarizeMilestone, uniqueFileName, upsertSection,
 } from './scan.js';
+import { createDragController } from './drag.js';
 
 const client = celbridge;
 
-const CARD_MIME = 'application/x-roadmapper-card';
 const TREE_DEPTH = 8;
 const RESCAN_DELAY_MS = 250;
 const NO_LANE = '';
@@ -30,6 +30,12 @@ const agentButton = document.getElementById('agent-instructions');
 const messageEl = document.getElementById('message');
 const messageText = document.getElementById('message-text');
 const createRootButton = document.getElementById('create-root');
+
+const drag = createDragController({
+    onDrop: (payload, target) => applyDrop(payload, target),
+    canDrag: () => writable,
+    scrollContainer: boardEl,
+});
 
 let config = { root: 'plans', lanes: [], showLanes: false };
 let documentResource = '';
@@ -260,21 +266,22 @@ async function moveFile(resource, folder) {
 
 // A drop can change a plan's lane and status (front matter) and its milestone (folder). The front matter
 // is written before the move, while the file is still where the scan found it.
-async function applyDrop(drag, target) {
+async function applyDrop(payload, target) {
     const updates = {};
-    if (target.lane !== undefined && target.lane !== drag.lane) {
+    if (target.lane !== undefined && target.lane !== payload.lane) {
         updates.lane = target.lane || null;
     }
-    if (target.status && target.status !== drag.status) {
+    if (target.status && target.status !== payload.status) {
         updates.status = target.status;
     }
     if (Object.keys(updates).length > 0) {
-        await updatePlan(drag.resource, updates);
+        await updatePlan(payload.resource, updates);
     }
-    if (target.folder && target.folder !== drag.from) {
-        await moveFile(drag.resource, target.folder);
+    if (target.folder && target.folder !== payload.from) {
+        await moveFile(payload.resource, target.folder);
     }
     await scan();
+    if (renderDeferred) render();
 }
 
 function namesInFolder(folder) {
@@ -474,7 +481,6 @@ function milestoneHeader(column, { detail = false } = {}) {
 function renderCard(card, column, { showLane }) {
     const item = el('li', `card status-edge-${card.status}`);
     item.tabIndex = 0;
-    item.draggable = writable;
     item.title = `Open ${card.resource}`;
 
     item.appendChild(el('div', 'card-title', card.title));
@@ -504,40 +510,18 @@ function renderCard(card, column, { showLane }) {
 }
 
 function wireDrag(element, card, column) {
-    element.addEventListener('dragstart', event => {
-        event.dataTransfer.setData(CARD_MIME, JSON.stringify({
-            resource: card.resource, from: column.folder, lane: card.lane, status: card.status,
-        }));
-        event.dataTransfer.effectAllowed = 'move';
-        element.classList.add('dragging');
-    });
-    element.addEventListener('dragend', () => element.classList.remove('dragging'));
+    drag.makeDraggable(element, { resource: card.resource, from: column.folder, lane: card.lane, status: card.status });
 }
 
 function wireDropTarget(element, target) {
-    const accepts = event => writable && event.dataTransfer.types.includes(CARD_MIME);
-    element.addEventListener('dragover', event => {
-        if (!accepts(event)) return;
-        event.preventDefault();
-        event.dataTransfer.dropEffect = 'move';
-        element.classList.add('drop-target');
-    });
-    element.addEventListener('dragleave', event => {
-        if (!element.contains(event.relatedTarget)) element.classList.remove('drop-target');
-    });
-    element.addEventListener('drop', async event => {
-        element.classList.remove('drop-target');
-        if (!accepts(event)) return;
-        event.preventDefault();
-        await applyDrop(JSON.parse(event.dataTransfer.getData(CARD_MIME)), target);
-    });
+    drag.makeDropTarget(element, target);
 }
 
 // --- Views ---
 
 function render() {
     const active = document.activeElement;
-    if (active?.classList.contains('inline-input')) {
+    if (active?.classList.contains('inline-input') || drag.isDragging()) {
         renderDeferred = true;
         return;
     }
@@ -695,7 +679,6 @@ function renderDetail(column) {
 
 function renderDetailRow(card, column) {
     const row = el('li', 'detail-row');
-    row.draggable = writable;
 
     const open = el('button', 'detail-title', card.title);
     open.type = 'button';

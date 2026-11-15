@@ -577,3 +577,26 @@ body:not(.read-only) .card {
 .status-select {
     grid-area: status;
 }
+
+/* --- Dragging (pointer-based, see js/drag.js) --- */
+
+.rm-draggable {
+    touch-action: none;
+}
+
+body.rm-is-dragging,
+body.rm-is-dragging * {
+    user-select: none;
+    cursor: grabbing !important;
+}
+
+.rm-drag-ghost {
+    position: fixed;
+    z-index: 1000;
+    pointer-events: none;
+    opacity: 0.9;
+    box-shadow: 0 8px 24px rgba(0, 0, 0, 0.25);
+    transform: rotate(1.5deg);
+    list-style: none;
+    margin: 0;
+}
