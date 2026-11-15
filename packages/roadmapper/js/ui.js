@@ -132,6 +132,14 @@ export function milestoneHeader(ctx, milestone, { detail = false } = {}) {
     return header;
 }
 
+// Who is working on a plan, from its `owner:` (a person, or an agent's name).
+export function ownerTag(plan) {
+    const tag = el('span', 'owner-tag', plan.owner);
+    tag.prepend(icon('person'), ' ');
+    tag.title = `${plan.owner} is working on this`;
+    return tag;
+}
+
 // --- Dependencies ---
 
 const PROBLEMS = {
@@ -184,6 +192,7 @@ export function planCard(ctx, plan, { showLane = true } = {}) {
     const tags = el('div', 'card-tags');
     tags.appendChild(statusChip(plan.status));
     if (showLane && plan.lane) tags.appendChild(el('span', 'lane-tag', plan.lane));
+    if (plan.owner) tags.appendChild(ownerTag(plan));
     const deps = dependencyChip(plan);
     if (deps) tags.appendChild(deps);
     if (plan.total > 0) {

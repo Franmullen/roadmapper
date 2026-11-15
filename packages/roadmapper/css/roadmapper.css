@@ -376,6 +376,11 @@ body.read-only .write-only {
     white-space: nowrap;
 }
 
+.owner-tag {
+    color: var(--cel-text-secondary);
+    white-space: nowrap;
+}
+
 .empty {
     padding: 10px 4px;
     color: var(--cel-text-secondary);

@@ -148,6 +148,11 @@ def main():
     make_project(rng, "e-chris-style", "data-pipeline", 6, (2, 6), style="chris", nested=True)
     make_project(rng, "f-messy", "space-shooter", 5, (0, 4), style="no-heading", loose=5, empty=1, nested=True)
 
+    # An older project with notes in its own shapes, for trying out turning notes into a roadmap.
+    # Its .roadmap points at a plans/ folder that does not exist until someone (or an agent) creates it.
+    shutil.copytree(HERE / "fixtures" / "old-game", OUT / "old-game")
+    make_board("old-game", OUT / "old-game" / "plans")
+
     # Random projects, a few dozen variations on the same structure.
     for n in range(1, extra + 1):
         theme = rng.choice(list(THEMES))

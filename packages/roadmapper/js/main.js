@@ -53,7 +53,10 @@ let renderDeferred = false;
 let restoreScrollTop = 0;
 let uiRestored = false;
 
-const isView = id => VIEW_LIST.some(view => view.id === id);
+// Earlier names for views, still accepted in .roadmap files and saved editor state.
+const VIEW_ALIASES = { pipeline: 'road' };
+const viewId = id => VIEW_ALIASES[id] ?? id;
+const isView = id => VIEW_LIST.some(view => view.id === viewId(id));
 
 // --- Host helpers ---
 
@@ -149,7 +152,7 @@ function applyContent(content, { firstLoad = false } = {}) {
         showMessage('This .roadmap file is not valid JSON, so the default settings are shown.');
     }
     if (firstLoad && !uiRestored) {
-        if (isView(config.view)) ui.view = config.view;
+        if (isView(config.view)) ui.view = viewId(config.view);
         ui.showLanes = config.showLanes;
     }
     rootInput.value = config.root;
@@ -224,6 +227,7 @@ async function scan() {
         if (token !== scanToken) return;
         project = loaded;
         rootMissing = false;
+        actions.writeBrief(project, documentResource, today());
         showMessage(project.milestones.length === 0 ? `"${config.root}" is empty. Add a milestone to start planning.` : '');
     } catch (e) {
         if (token !== scanToken) return;
@@ -428,7 +432,7 @@ try {
             try {
                 const state = JSON.parse(stateJson);
                 uiRestored = true;
-                if (isView(state?.view)) ui.view = state.view;
+                if (isView(state?.view)) ui.view = viewId(state.view);
                 if (typeof state?.showLanes === 'boolean') ui.showLanes = state.showLanes;
                 ui.milestone = typeof state?.milestone === 'string' ? state.milestone : null;
                 viewport.importMemory(state?.zoom);

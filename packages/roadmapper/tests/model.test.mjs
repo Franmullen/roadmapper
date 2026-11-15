@@ -2,10 +2,10 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import {
-    AGENT_SECTION_END, AGENT_SECTION_START, agentInstructions, scanTree, deriveStatus, displayName, isOverdue,
+    scanTree, deriveStatus, displayName, isOverdue,
     laneOrder, milestoneTemplate, nextMilestoneFolder, normalizeFolder, normalizeStatus, parseConfig, parseFrontMatter,
     planTemplate, serializeConfig, setFrontMatter, slugify, summarizeMarkdown, summarizeMilestone, uniqueFileName,
-    upsertSection, buildProject, statusCounts, todayMarkerIndex, isMilestoneOverdue, parseList, projectResources, dropChanges,
+    buildProject, statusCounts, todayMarkerIndex, isMilestoneOverdue, parseList, projectResources, dropChanges,
 } from '../js/model.js';
 import { fitState, zoomAt } from '../js/viewport.js';
 
@@ -93,12 +93,12 @@ test('status is derived from checkboxes when not set', () => {
 test('summary takes title, tasks, status and lane', () => {
     const md = '---\nstatus: review\nlane: ui\n---\nIntro\n# Real Title #\n- [x] one\n  * [X] two\n- [ ] three\n- not a task\n';
     assert.deepEqual(summarizeMarkdown(md, 'x.md'),
-        { title: 'Real Title', done: 2, total: 3, status: 'review', statusExplicit: true, lane: 'ui', dependsOn: [] });
+        { title: 'Real Title', done: 2, total: 3, status: 'review', statusExplicit: true, lane: 'ui', owner: '', dependsOn: [] });
 });
 
 test('summary falls back to the file name and derived status', () => {
     assert.deepEqual(summarizeMarkdown('', 'auth-flow.md'),
-        { title: 'auth-flow', done: 0, total: 0, status: 'todo', statusExplicit: false, lane: '', dependsOn: [] });
+        { title: 'auth-flow', done: 0, total: 0, status: 'todo', statusExplicit: false, lane: '', owner: '', dependsOn: [] });
     assert.equal(summarizeMarkdown('- [x] a\n- [x] b', 'a.MD').status, 'done');
     assert.equal(summarizeMarkdown('---\nstatus: weird\n---\n- [x] a\n- [ ] b', 'a.md').status, 'doing');
 });
@@ -192,24 +192,6 @@ test('templates read back as the plan and milestone they describe', () => {
     assert.equal(plan.lane, 'ui');
     assert.equal(summarizeMarkdown(planTemplate({ title: 'X', lane: '' }), 'x.md').lane, '');
     assert.equal(summarizeMilestone(milestoneTemplate('v0.5 Polish')).title, 'v0.5 Polish');
-});
-
-// --- Agent instructions ---
-
-test('agent instructions name the root, lanes and statuses', () => {
-    const text = agentInstructions({ root: 'plans', lanes: ['core', 'ui'], showLanes: true }, 'roadmapper.roadmap');
-    assert.ok(text.startsWith(AGENT_SECTION_START) && text.endsWith(AGENT_SECTION_END));
-    assert.match(text, /`plans\/`/);
-    assert.match(text, /`core`, `ui`/);
-    assert.match(text, /`blocked`/);
-});
-
-test('upsertSection appends once, then replaces in place', () => {
-    const first = upsertSection('# Project\n\nNotes.\n', `${AGENT_SECTION_START}\nv1\n${AGENT_SECTION_END}`);
-    assert.equal(first, `# Project\n\nNotes.\n\n${AGENT_SECTION_START}\nv1\n${AGENT_SECTION_END}\n`);
-    const second = upsertSection(first + '\nAfter.\n', `${AGENT_SECTION_START}\nv2\n${AGENT_SECTION_END}`);
-    assert.equal(second, `# Project\n\nNotes.\n\n${AGENT_SECTION_START}\nv2\n${AGENT_SECTION_END}\n\nAfter.\n`);
-    assert.equal(upsertSection('', 'S'), 'S\n');
 });
 
 // --- The project ---

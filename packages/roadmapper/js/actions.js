@@ -5,9 +5,10 @@
 // except loadProject, whose caller decides what an unreadable folder means.
 
 import {
-    agentInstructions, buildProject, dropChanges, milestoneTemplate, nextMilestoneFolder, planTemplate,
-    projectResources, setFrontMatter, uniqueFileName, upsertSection,
+    buildProject, dropChanges, milestoneTemplate, nextMilestoneFolder, planTemplate, projectResources,
+    setFrontMatter, uniqueFileName,
 } from './model.js';
+import { agentInstructions, briefResource, roadmapBrief, upsertSection } from './agents.js';
 
 const TREE_DEPTH = 8;
 
@@ -161,8 +162,24 @@ export function createActions(client, { notify }) {
         }
     }
 
+    // Keeps the agent brief (see agents.js) up to date in Celbridge's temp: root, which is local to this
+    // machine and never committed. Only writes when the text changes; a failure only costs agents a shortcut.
+    let lastBrief = { resource: null, text: null };
+    async function writeBrief(project, roadmapResource, today) {
+        const resource = briefResource(stripRoot(roadmapResource));
+        const text = roadmapBrief(project, { today, roadmapResource: stripRoot(roadmapResource) });
+        if (lastBrief.resource === resource && lastBrief.text === text) return;
+        try {
+            await call('explorer.createFolder', 'temp:roadmapper').catch(() => { });
+            await call('file.write', resource, text);
+            lastBrief = { resource, text };
+        } catch (e) {
+            console.warn('[Roadmapper] Could not write the agent brief:', e);
+        }
+    }
+
     return {
         loadProject, openFile, revealFolder, updatePlan, dropPlan, createPlan, createMilestone,
-        createMilestoneReadme, createRoot, writeAgentGuide,
+        createMilestoneReadme, createRoot, writeAgentGuide, writeBrief,
     };
 }

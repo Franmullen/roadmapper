@@ -19,7 +19,7 @@ function node(ctx, plan) {
     if (plan.depends.some(dep => dep.problem)) item.classList.add('has-problem');
     item.dataset.resource = plan.resource;
 
-    const lines = [plan.title, `${STATUS_LABELS[plan.status]} · ${plan.path}`];
+    const lines = [plan.title, [STATUS_LABELS[plan.status], plan.owner && `owner ${plan.owner}`, plan.path].filter(Boolean).join(' · ')];
     if (plan.total) lines.push(`${plan.done} of ${plan.total} tasks done`);
     if (plan.depends.length) lines.push('', 'Depends on:', ...plan.depends.map(describeDependency));
     if (plan.dependents.length) lines.push('', `Needed by ${plan.dependents.length} plan${plan.dependents.length === 1 ? '' : 's'}`);

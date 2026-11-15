@@ -3,7 +3,7 @@
 // Opened from the other views; ctx.milestone names which milestone to show.
 
 import { STATUSES, STATUS_LABELS } from '../model.js';
-import { addPlanButton, button, dependencyChip, dependencyLinks, dragPayload, el, icon, milestoneHeader, statusChip } from '../ui.js';
+import { addPlanButton, button, dependencyChip, dependencyLinks, dragPayload, el, icon, milestoneHeader, ownerTag, statusChip } from '../ui.js';
 
 function planRow(ctx, plan) {
     const row = el('li', 'detail-row');
@@ -12,6 +12,7 @@ function planRow(ctx, plan) {
 
     const meta = el('div', 'detail-meta');
     if (plan.lane) meta.appendChild(el('span', 'lane-tag', plan.lane));
+    if (plan.owner) meta.appendChild(ownerTag(plan));
     meta.appendChild(el('span', 'card-file', plan.path));
     if (plan.total > 0) {
         meta.appendChild(el('span', plan.done === plan.total ? 'card-tasks complete' : 'card-tasks', `${plan.done}/${plan.total} tasks`));

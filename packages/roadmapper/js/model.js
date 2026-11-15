@@ -1,6 +1,6 @@
 // The Roadmapper model: settings, front matter, and how a folder of Markdown becomes a project of
-// milestones, plans and lanes. Also the text Roadmapper writes. This is the only module that knows the
-// file conventions, and it makes no Celbridge calls, so it can be tested with plain Node.
+// milestones, plans and lanes, and the templates for new files. This is the only module that knows the
+// file conventions (agents.js turns the model into text for AI agents), and it makes no Celbridge calls, so it can be tested with plain Node.
 //
 // The project every view draws from:
 //   {
@@ -8,7 +8,7 @@
 //     lanes: ['core', 'ui', ...],             // display order
 //     milestones: [{ folder, name, title, due, description, metaResource, unsorted, truncated,
 //                    plans: [...], counts: { todo, doing, review, done, blocked } }],
-//     plans: [{ resource, name, path, milestone, title, status, statusExplicit, lane, done, total,
+//     plans: [{ resource, name, path, milestone, title, status, statusExplicit, lane, owner, done, total,
 //               dependsOn: ['ref'],                       // the raw `depends:` list
 //               depends: [{ ref, resource, title, done, problem }],  // resolved; problem: missing, ambiguous, later
 //               dependents: [resource],                   // plans that depend on this one
@@ -180,6 +180,7 @@ export function summarizeMarkdown(content, fileName) {
         status: explicit ?? deriveStatus(done, total),
         statusExplicit: explicit !== null,
         lane: (data.lane ?? '').trim(),
+        owner: (data.owner ?? '').trim(),
         dependsOn: parseList(data.depends),
     };
 }
@@ -382,7 +383,7 @@ function linkDependencies(milestones, root) {
     }
 }
 
-// Where the "Today" marker sits in the pipeline: before the first dated milestone due after today (a
+// Where the "Today" marker sits on the road: before the first dated milestone due after today (a
 // milestone due today sits before the marker), or at the end when every dated one is due by today.
 // Null when no milestone has a date.
 export function todayMarkerIndex(milestones, today) {
@@ -445,42 +446,4 @@ export function planTemplate({ title, lane }) {
 
 export function milestoneTemplate(title) {
     return `# ${title}\n\nWhat this milestone delivers.\n`;
-}
-
-// --- Agent instructions (a section in the project's CLAUDE.md) ---
-
-export const AGENT_SECTION_START = '<!-- roadmapper:start -->';
-export const AGENT_SECTION_END = '<!-- roadmapper:end -->';
-
-export function agentInstructions(config, roadmapResource) {
-    const lanes = config.lanes.length > 0 ? config.lanes.map(lane => `\`${lane}\``).join(', ') : 'none defined yet';
-    return [
-        AGENT_SECTION_START,
-        '## Roadmap (Roadmapper)',
-        '',
-        `This project plans its work with Roadmapper. The plan is the Markdown under \`${config.root}/\`. \`${roadmapResource}\` only holds board settings, so do not edit it to change the plan.`,
-        '',
-        `- **Milestones** are the folders directly inside \`${config.root}/\`, ordered by a number prefix (\`01-…\`, \`02-…\`). To add one, create the next numbered folder with a \`README.md\` whose \`# heading\` names it, whose first paragraph describes it, and whose front matter may set \`due: YYYY-MM-DD\`.`,
-        '- **Plans** are the other `.md` files in a milestone folder, one per piece of work. Start each with a `# Title` and list steps as `- [ ]` checkboxes.',
-        `- **Front matter** on a plan sets \`status:\` (one of ${STATUSES.map(s => `\`${s}\``).join(', ')}) and \`lane:\` (a parallel workstream; current lanes: ${lanes}).`,
-        '- **Dependencies:** `depends: other-plan, 02-beta/login` names plans that must be done first, by file name (without `.md`) or by path inside the root. Keep a dependency in the same milestone or an earlier one.',
-        '- **When you work on a plan**, set `status: doing`, tick each checkbox (`- [x]`) as you finish it, and set `status: done` when all of it is complete. Use `status: blocked` with a sentence saying why.',
-        '- **To reschedule** a plan, move its file into another milestone folder. Keep file names lower-case with hyphens.',
-        '- The board updates by itself when these files change.',
-        AGENT_SECTION_END,
-    ].join('\n');
-}
-
-// Replaces the Roadmapper section in a CLAUDE.md, or appends one.
-export function upsertSection(existing, section) {
-    const text = existing ?? '';
-    const start = text.indexOf(AGENT_SECTION_START);
-    const end = text.indexOf(AGENT_SECTION_END);
-    if (start >= 0 && end > start) {
-        return text.slice(0, start) + section + text.slice(end + AGENT_SECTION_END.length);
-    }
-    if (!text.trim()) {
-        return section + '\n';
-    }
-    return text.replace(/\s*$/, '') + '\n\n' + section + '\n';
 }

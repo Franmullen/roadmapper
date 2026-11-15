@@ -15,7 +15,7 @@ There's no separate database: **your folders and Markdown files are the plan**. 
    }
    ```
 
-   Optional settings: `"lanes": ["core", "ui"]` sets the lane order (**+ Lane** on the board adds to it). `"view": "pipeline"`, `"board"` or `"map"` and `"showLanes": true` choose how the board first opens; after that, each editor remembers its own view without changing the file.
+   Optional settings: `"lanes": ["core", "ui"]` sets the lane order (**+ Lane** on the board adds to it). `"view": "road"`, `"board"` or `"map"` and `"showLanes": true` choose how the board first opens; after that, each editor remembers its own view without changing the file.
 
 3. Open it. If the folder is empty, use **+ Milestone** to start.
 
@@ -41,6 +41,7 @@ plans/
 | Card title | `title:` front matter, else the first `# heading`, else the file name |
 | Status | `status:` front matter: `todo`, `doing`, `review`, `done` or `blocked`. Without it, the checkboxes decide: none ticked is To do, some is Doing, all is Done. |
 | Lane | `lane:` front matter |
+| Owner | `owner:` front matter: who is working on it, a person or an agent |
 | Dependencies | `depends:` front matter, naming the plans that must be done first (see below) |
 | Task progress | The `- [ ]` / `- [x]` checkboxes |
 
@@ -75,12 +76,12 @@ Cards show what a plan is waiting on. A dependency is flagged in red when no pla
 
 ## Views
 
-- **Pipeline** (the default): one stage per milestone, in order, with its due date, plans done, a bar split by status, the lanes involved and its plans. A **Today** marker sits between the milestones due before and after today. Overdue stages turn red and finished ones show a tick. Click a plan to open its file, or drag it to another stage to move it there. Click a stage's title to open that milestone.
+- **Road** (the default): the milestones as stops along a road, in order. Each stop shows its due date, plans done, a bar split by status, the lanes involved and its plans. A **Today** marker sits between the milestones due before and after today. Overdue stops turn red and finished ones show a tick. Click a plan to open its file, or drag it to another stop to move it there. Click a stop's title to open that milestone.
 - **Board**: a column per milestone with its plan cards, or the lanes grid when **Lanes** is on.
 - **Map**: the whole project at once. Lanes are bands, milestones are columns and each plan is a node, with arrows from each plan to the plans that depend on it. Hover a plan to pick out its links; click it to open it. Zoomed out, plans become coloured blocks; zoom in for titles and task counts.
 - **Milestone**: one milestone's plans grouped by status, with links to each plan's dependencies. Use **Back** or Escape to return.
 
-Pipeline, Board and Map pan and zoom, so any size of project fits on screen:
+Road, Board and Map pan and zoom, so any size of project fits on screen:
 
 - Ctrl+wheel (or pinch) zooms at the pointer; the wheel and dragging the background pan.
 - The controls in the corner (or the keys `-`, `+` and `0`) zoom out, zoom in and fit to the screen. Click the percentage to return to 100%.
@@ -99,10 +100,23 @@ Pipeline, Board and Map pan and zoom, so any size of project fits on screen:
 
 ## AI agents
 
-Press **Agent guide** on the toolbar to add a Roadmapper section to the project's `CLAUDE.md`. Claude Code reads that file, including when it's launched from Celbridge with `cel.agent.claude()`, so agents learn how to add milestones and plans, update statuses, tick tasks and reschedule work. Press it again after changing lanes to refresh the section. Everything outside its `<!-- roadmapper:start -->` / `<!-- roadmapper:end -->` markers is left alone.
+An agent steers by the roadmap through files alone; there is nothing to click.
+
+- **Agent guide** on the toolbar adds a Roadmapper section to the project's `CLAUDE.md`, which Claude Code reads, including when it's launched from Celbridge with `cel.agent.claude()`. The section explains the format, how to read the roadmap, and how to work from it: pick a ready plan, set `status: doing` and `owner:`, tick tasks as they're done, and finish in `review`. Press it again after changing lanes. Everything outside its `<!-- roadmapper:start -->` / `<!-- roadmapper:end -->` markers is left alone.
+- **The brief:** while a board is open, it keeps a short summary in Celbridge's `temp:roadmapper/` folder (local to your machine, never committed). It lists the milestones, what's in progress, what's ready to start, what's waiting or blocked, and broken dependencies, so an agent can understand the roadmap in one read.
+
+So you can simply ask an agent things like:
+
+- "Where does this project stand, and what's next?"
+- "Take the next ready plan in the ui lane."
+- "Plan out the v0.3 milestone."
+- "Turn the TODO and ROADMAP notes in this project into a roadmap."
+
+In tests with the restricted agent `cel.agent.claude()` launches, it answered "where do we stand" from the brief in four steps. It also turned a project's scattered TODO, roadmap, changelog and meeting notes into a working roadmap of 4 milestones and 18 plans, with dependencies, in about a minute.
 
 ## Development
 
+- `js/agents.js` turns the model into text for agents: the CLAUDE.md section and the brief. It is pure and tested too.
 - `js/model.js` is the pure logic: settings, front matter, statuses, the project model built from the folder tree, templates and agent instructions. Test it with `node --test packages/roadmapper/tests/`.
 - `js/actions.js` makes every read and write through the `celbridge-client` API.
 - `js/views/` holds one file per view, with its styles in `css/views/<id>.css`. Each exports `{ id, label, icon, zoomable, fitAlign, render(container, project, ctx), mounted? }` and only draws; add a view by adding those two files and listing it in `views/index.js`. `css/roadmapper.css` holds what every view shares.

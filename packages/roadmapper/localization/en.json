@@ -1,6 +1,6 @@
 {
     "Roadmapper_Editor_Name": "Roadmap Board",
-    "Roadmapper_Editor_Description": "Shows a folder of Markdown plans as milestones: a pipeline, a board and a map",
+    "Roadmapper_Editor_Description": "Shows a folder of Markdown plans as milestones: a road, a board and a map",
     "Roadmapper_FileType_Roadmap": "Roadmap",
     "Roadmapper_Template_Default": "Roadmap"
 }

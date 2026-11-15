@@ -1,4 +1,4 @@
-// Pipeline view: the high-level view. Each milestone is a stage in one line, showing its due date, how
+// Road view: the high-level view. Each milestone is a stop along one road, showing its due date, how
 // many plans are done, a bar split by status, the lanes working in it, and its plans. A "Today" marker
 // sits between the stages by due date. Click a plan to open its file, or drag it to another stage to
 // move it there; click a stage's title (or its background) to open the milestone.
@@ -92,20 +92,20 @@ function todayMarker(ctx) {
 }
 
 export default {
-    id: 'pipeline',
-    label: 'Pipeline',
-    icon: 'arrow-right-square',
+    id: 'road',
+    label: 'Road',
+    icon: 'signpost-2',
     zoomable: true,
     fitAlign: 'center',
     render(container, project, ctx) {
-        const line = el('div', 'pipeline');
+        const line = el('div', 'road');
         const loose = project.milestones.filter(m => m.unsorted);
         const stages = project.milestones.filter(m => !m.unsorted);
         const markerAt = todayMarkerIndex(stages, ctx.today);
 
         for (const milestone of loose) {
             line.appendChild(stage(ctx, milestone));
-            line.appendChild(el('div', 'pipeline-gap'));
+            line.appendChild(el('div', 'road-gap'));
         }
         stages.forEach((milestone, index) => {
             if (index > 0) line.appendChild(el('div', 'connector'));

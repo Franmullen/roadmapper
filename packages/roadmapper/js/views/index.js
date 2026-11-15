@@ -2,9 +2,9 @@
 // stylesheet at css/views/<id>.css that main.js loads for it:
 //
 //   export default {
-//       id: 'pipeline',               // also the stylesheet name, and how the .roadmap "view" names it
-//       label: 'Pipeline',            // the toolbar button
-//       icon: 'arrow-right-square',   // a Bootstrap Icons name
+//       id: 'road',                   // also the stylesheet name, and how the .roadmap "view" names it
+//       label: 'Road',                // the toolbar button
+//       icon: 'signpost-2',           // a Bootstrap Icons name
 //       zoomable: true,               // drawn on the pan-and-zoom canvas, or scrolled normally
 //       fitAlign: 'center',           // how "fit to screen" places it: 'center' or 'top'
 //       render(container, project, ctx) { },    // build the view's DOM inside container
@@ -19,10 +19,10 @@
 // To add a view: write views/<id>.js (and css/views/<id>.css), and add it to the list below. The
 // milestone view is not listed because it is opened from the others rather than chosen on the toolbar.
 
-import pipeline from './pipeline.js';
+import road from './road.js';
 import board from './board.js';
 import map from './map.js';
 
-export const VIEW_LIST = [pipeline, board, map];
+export const VIEW_LIST = [road, board, map];
 
 export { default as milestoneView } from './milestone.js';

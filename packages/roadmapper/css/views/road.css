@@ -1,11 +1,11 @@
-/* Pipeline view (js/views/pipeline.js) */
+/* Road view (js/views/road.js): milestones as stops along a road, with a Today marker. */
 
 :root {
     --rm-stage-width: 250px;
 }
 
 /* Stages stretch to the tallest, so the line reads as one row; connectors sit level with the titles. */
-.pipeline {
+.road {
     display: flex;
     align-items: stretch;
     padding: 28px 8px 8px;
@@ -171,7 +171,7 @@
     color: var(--cel-accent);
 }
 
-.pipeline > .inline-input {
+.road > .inline-input {
     align-self: flex-start;
     width: 200px;
 }
@@ -179,24 +179,25 @@
 .connector {
     flex: none;
     align-self: flex-start;
-    margin-top: 60px;
+    margin-top: 54px;
     position: relative;
-    width: 44px;
-    height: 2px;
-    background: var(--cel-divider);
+    width: 52px;
+    height: 12px;
+    background: color-mix(in srgb, var(--cel-text-secondary) 55%, transparent);
 }
 
+/* The dashed centre line of the road. */
 .connector::after {
     content: '';
     position: absolute;
-    right: -1px;
-    top: -5px;
-    border: 6px solid transparent;
-    border-left: 8px solid var(--cel-divider);
-    border-right: none;
+    left: 4px;
+    right: 4px;
+    top: 5px;
+    height: 2px;
+    background: repeating-linear-gradient(90deg, var(--cel-content-bg) 0 8px, transparent 8px 14px);
 }
 
-.pipeline-gap {
+.road-gap {
     flex: none;
     width: 36px;
 }

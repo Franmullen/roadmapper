@@ -12,3 +12,4 @@ Thumbs.db
 desktop.ini
 __pycache__/
 node_modules/
+dist/
