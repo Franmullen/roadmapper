@@ -6,7 +6,7 @@ Thanks for helping. Roadmapper is a [Celbridge](https://www.celbridge.org/) pack
 
 1. Install Celbridge (1.7 or later) and Node.js 22 or later (only needed for the tests).
 2. Clone this repository and open `Roadmapper.celbridge` in Celbridge. The package in `packages/roadmapper/` loads with the project.
-3. To plan your own work, open `roadmapper.roadmap`; it reads a local `plans/` folder.
+3. To plan your own work, create a `.roadmap` file (New File → Roadmap) over a local `plans/` folder; both are gitignored.
 
 ## Making a change
 
