@@ -54,4 +54,6 @@ Context: Roadmapper (a package with a kanban-style board) first used HTML5 drag 
 
 Expected in a browser: `dragstart`, many `drag` and `dragover`, then `drop` and `dragend:move` (or `copy`). In Celbridge 1.7.0 on Windows: `{"dragstart":1,"dragend:none":1}`.
 
+**Where it may come from:** I couldn't find anything in Celbridge that turns drag off on purpose. The web view hosts (`WindowsWebView`, `WebViewBase`) don't handle drag events at all. This is the packaged Windows build (`org.celbridge.Celbridge_1.7.0.0`), which hosts WebView2 through WinUI, so the cause may be in WinUI's WebView2 rather than in Celbridge. If so, this report is mainly worth a note for package authors. Celbridge's own explorer already uses a pointer-driven drag on the Skia heads because built-in drag is unreliable there, and pointer events work well in a package editor too.
+
 **Screenshots and logs:** a log can be attached on request. I haven't tested macOS.
