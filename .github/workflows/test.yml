@@ -13,6 +13,6 @@ jobs:
         with:
           node-version: 22
       - name: Model and agent tests
-        run: node --test packages/roadmapper/tests/
+        run: node --test packages/roadmapper/tests/*.test.mjs
       - name: The release zip builds
         run: python3 scripts/package.py

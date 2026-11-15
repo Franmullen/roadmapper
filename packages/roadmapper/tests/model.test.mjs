@@ -1,4 +1,4 @@
-// Run with: node --test packages/roadmapper/tests/
+// Run with: node --test packages/roadmapper/tests/*.test.mjs
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import {

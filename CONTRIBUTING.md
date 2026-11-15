@@ -16,7 +16,7 @@ Thanks for helping. Roadmapper is a [Celbridge](https://www.celbridge.org/) pack
   - Each view is one file in `js/views/` and one stylesheet in `css/views/`.
 - **Trying it:** after changing the page's HTML, CSS or JS, reload the open `.roadmap` editor. After changing `package.toml` or `roadmapper.editor.toml`, reload the project.
 - **Mock projects:** the shuffle button in `python.console` runs `mocks/make_mocks.py`, which writes thirty mock projects to `mocks/generated/` (ignored by git). Try write actions there, not on `plans/`.
-- **Tests:** run `node --test packages/roadmapper/tests/`. Logic changes in `model.js` or `agents.js` need a test. The same tests run on every push and pull request.
+- **Tests:** run `node --test packages/roadmapper/tests/*.test.mjs`. Logic changes in `model.js` or `agents.js` need a test. The same tests run on every push and pull request.
 - **Drag and drop** uses pointer events (`js/drag.js`), because native HTML5 drag events don't reach Celbridge's web views from a real mouse.
 
 ## Plans are part of the change

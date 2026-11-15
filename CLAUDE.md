@@ -4,7 +4,7 @@ A Celbridge package (`packages/roadmapper/`) that shows milestone folders of Mar
 
 ## Development
 
-- `packages/roadmapper/js/model.js` holds the file conventions as pure logic (settings, front matter, statuses, dependencies, the project model from the folder tree, templates). `js/agents.js` turns that model into text for agents: the CLAUDE.md guide and the brief. Keep Celbridge calls out of both, and cover changes with `node --test packages/roadmapper/tests/`.
+- `packages/roadmapper/js/model.js` holds the file conventions as pure logic (settings, front matter, statuses, dependencies, the project model from the folder tree, templates). `js/agents.js` turns that model into text for agents: the CLAUDE.md guide and the brief. Keep Celbridge calls out of both, and cover changes with `node --test packages/roadmapper/tests/*.test.mjs`.
 - `packages/roadmapper/js/actions.js` makes every read and write through the `celbridge-client` API. Views in `js/views/` (one file each, plus `css/views/<id>.css`, listed in `views/index.js`) only draw; `main.js` handles the document lifecycle, file watch, toolbar and view switching.
 - Use pointer events for drag and drop (`js/drag.js`): native HTML5 drag events never fire from a real mouse in Celbridge WebViews.
 - Celbridge only discovers packages when a project loads. A change to `package.toml` or `*.editor.toml` needs a project reload. A change to the page's HTML, CSS or JS needs only a reload of the editor (`webview_reload` on the open `.roadmap` document).

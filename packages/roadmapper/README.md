@@ -117,7 +117,7 @@ In tests with the restricted agent `cel.agent.claude()` launches, it answered "w
 ## Development
 
 - `js/agents.js` turns the model into text for agents: the CLAUDE.md section and the brief. It is pure and tested too.
-- `js/model.js` is the pure logic: settings, front matter, statuses, the project model built from the folder tree, templates and agent instructions. Test it with `node --test packages/roadmapper/tests/`.
+- `js/model.js` is the pure logic: settings, front matter, statuses, dependencies, the project model built from the folder tree, and templates. Test it with `node --test packages/roadmapper/tests/*.test.mjs`.
 - `js/actions.js` makes every read and write through the `celbridge-client` API.
 - `js/views/` holds one file per view, with its styles in `css/views/<id>.css`. Each exports `{ id, label, icon, zoomable, fitAlign, render(container, project, ctx), mounted? }` and only draws; add a view by adding those two files and listing it in `views/index.js`. `css/roadmapper.css` holds what every view shares.
 - `js/viewport.js` (pan and zoom), `js/drag.js` (pointer-event drag and drop; native HTML5 drag doesn't work in Celbridge's WebView) and `js/ui.js` (shared pieces such as cards and chips) are used by the views.
