@@ -41,6 +41,6 @@ Roadmapper is a Celbridge package: a custom editor for `.roadmap` files, written
 - **Front matter, not Celbridge `.cel` sidecars,** so plans stay portable and readable in git.
 - **Pointer events for drag and drop,** because native HTML5 drag never fires from a real mouse in Celbridge web views.
 - **Agents steer through files** (the guide, the brief, `ideas.md`, plan statuses), because packages cannot launch agents or run commands.
-- **The person in the loop works on two tabs:** Reviews (acceptance) and Ideas (intake). Code quality is checked separately, by `scripts/check.py` and a fresh-context reviewer (see `CLAUDE.md`).
+- **The person in the loop works on two tabs:** Reviews (acceptance) and Ideas (intake). Code quality is checked separately, by `scripts/check.py` and a fresh-context reviewer (see the `ship-plan` skill).
 
 Known debt is in [debt.md](debt.md).

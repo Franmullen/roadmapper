@@ -1,7 +1,6 @@
 """The quality gate: every check a change must pass, locally (Windows or not) and in CI.
 
-    python scripts/check.py                 # everything
-    python scripts/check.py --base main     # also warn about package changes with no plan change
+    python scripts/check.py
 
 Checks, in order: JavaScript syntax, the tests, the architecture rules below, and the release zip build.
 Exits non-zero if any check fails.
@@ -199,23 +198,8 @@ def architecture():
     return not problems
 
 
-def plan_changed(base):
-    """A warning, not a failure: a change to the package usually delivers a plan, which should change too."""
-    diff = subprocess.run(['git', 'diff', '--name-only', f'{base}...HEAD'], cwd=ROOT, capture_output=True, text=True)
-    if diff.returncode != 0:
-        print(f'== Plan check skipped (no base {base})')
-        return
-    files = diff.stdout.split()
-    if any(f.startswith('packages/') for f in files) and not any(f.startswith('plans/') for f in files):
-        print('== WARNING: the package changed but no plan did. Which plan does this deliver?')
-    else:
-        print('== Plan check ok')
-
-
 def main():
-    parser = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
-    parser.add_argument('--base', help='branch or commit to compare against for the plan check')
-    args = parser.parse_args()
+    argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter).parse_args()
 
     results = [
         syntax(),
@@ -223,8 +207,6 @@ def main():
         architecture(),
         run('Release zip', [sys.executable, str(ROOT / 'scripts' / 'package.py')]),
     ]
-    if args.base:
-        plan_changed(args.base)
 
     if all(results):
         print('ALL CHECKS PASSED')
