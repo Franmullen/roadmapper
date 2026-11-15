@@ -1,7 +1,7 @@
 // Small DOM building blocks shared by the views. Nothing here reads or writes files: actions arrive
 // through the view context (see main.js).
 
-import { STATUSES, STATUS_LABELS, isComplete, isMilestoneOverdue } from './model.js';
+import { STATUSES, STATUS_LABELS, isComplete, isMilestoneOverdue, planTotal } from './model.js';
 
 export function el(tag, className, text) {
     const element = document.createElement(tag);
@@ -103,6 +103,15 @@ export function addPlanButton(ctx, folder, lane) {
     return trigger;
 }
 
+// In a focused view, how many finished plans a milestone is not showing.
+export function hiddenDoneNote(milestone) {
+    if (!milestone.hiddenDone) return null;
+    const note = el('span', 'hidden-done', ` ${milestone.hiddenDone} done`);
+    note.prepend(icon('check2'));
+    note.title = `${milestone.hiddenDone} finished plan${milestone.hiddenDone === 1 ? ' is' : 's are'} hidden. Show all to see them.`;
+    return note;
+}
+
 // A milestone's title, plan count, folder, due date and progress. In a list it links to the detail view.
 export function milestoneHeader(ctx, milestone, { detail = false } = {}) {
     const header = el('header', 'column-header');
@@ -114,7 +123,7 @@ export function milestoneHeader(ctx, milestone, { detail = false } = {}) {
         titleRow.appendChild(button('milestone-title', milestone.title,
             () => ctx.showMilestone(milestone.folder), 'Show this milestone in detail'));
     }
-    const total = milestone.plans.length;
+    const total = planTotal(milestone);
     titleRow.appendChild(el('span', 'count', total ? `${milestone.counts.done}/${total}` : '0'));
     header.appendChild(titleRow);
 
@@ -123,6 +132,8 @@ export function milestoneHeader(ctx, milestone, { detail = false } = {}) {
         () => ctx.reveal(milestone.folder), 'Show this folder in the Explorer'));
     const due = dueChip(milestone, ctx.today);
     if (due) metaRow.appendChild(due);
+    const finished = hiddenDoneNote(milestone);
+    if (finished) metaRow.appendChild(finished);
     header.appendChild(metaRow);
 
     if (total > 0) {

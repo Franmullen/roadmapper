@@ -16,7 +16,7 @@ function renderColumns(container, project, ctx) {
         for (const plan of milestone.plans) {
             list.appendChild(planCard(ctx, plan));
         }
-        if (milestone.plans.length === 0) list.appendChild(el('li', 'empty', 'No plans yet'));
+        if (milestone.plans.length === 0 && !milestone.hiddenDone) list.appendChild(el('li', 'empty', 'No plans yet'));
         if (milestone.truncated) list.appendChild(el('li', 'empty', 'Some files are nested too deeply to show'));
         section.appendChild(list);
         section.appendChild(addPlanButton(ctx, milestone.folder, NO_LANE));

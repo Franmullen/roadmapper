@@ -91,6 +91,17 @@ body.read-only .write-only {
     color: var(--cel-accent);
 }
 
+.toolbar-badge {
+    min-width: 16px;
+    padding: 0 5px;
+    border-radius: 999px;
+    background: var(--cel-divider);
+    color: var(--cel-text-secondary);
+    font-size: var(--cel-font-size-small);
+    font-variant-numeric: tabular-nums;
+    text-align: center;
+}
+
 #toolbar .inline-input {
     width: 200px;
 }
@@ -373,6 +384,12 @@ body.read-only .write-only {
     border-radius: var(--cel-radius-control);
     background: var(--cel-divider);
     color: var(--cel-text-primary);
+    white-space: nowrap;
+}
+
+.hidden-done {
+    color: var(--cel-text-secondary);
+    font-size: var(--cel-font-size-small);
     white-space: nowrap;
 }
 

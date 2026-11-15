@@ -104,6 +104,33 @@
     opacity: 0.4;
 }
 
+/* Collapsed stretches of road in a focused view. */
+.road-stub {
+    flex: none;
+    align-self: flex-start;
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    margin-top: 40px;
+    min-height: 40px;
+    padding: 0 12px;
+    border: 1px dashed var(--cel-divider);
+    border-radius: 999px;
+    background: var(--cel-chrome-bg);
+    color: var(--cel-text-secondary);
+    white-space: nowrap;
+    cursor: pointer;
+}
+
+.road-stub:hover {
+    border-color: var(--cel-accent);
+    color: var(--cel-accent);
+}
+
+.stage-plan-more {
+    padding: 3px 6px;
+}
+
 .stage-plan-title {
     flex: 1;
     min-width: 0;

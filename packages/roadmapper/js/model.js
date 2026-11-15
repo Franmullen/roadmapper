@@ -296,8 +296,14 @@ export function statusCounts(plans) {
     return counts;
 }
 
+// A milestone's plan count, from its counts, so it stays whole when a focused view hides finished plans.
+export function planTotal(milestone) {
+    return STATUSES.reduce((sum, status) => sum + milestone.counts[status], 0);
+}
+
 export function isComplete(milestone) {
-    return milestone.plans.length > 0 && milestone.counts.done === milestone.plans.length;
+    const total = planTotal(milestone);
+    return total > 0 && milestone.counts.done === total;
 }
 
 export function isMilestoneOverdue(milestone, today) {
@@ -381,6 +387,46 @@ function linkDependencies(milestones, root) {
         });
         plan.waitingOn = plan.depends.filter(dep => dep.resource && !dep.done).length;
     }
+}
+
+// --- Focus: what is going on now and next ---
+
+// The project as a focused view shows it: the milestones from the first unfinished one through the one
+// after the last milestone with work started, without their finished plans. Finished milestones before
+// that and untouched ones after it are left out (listed in hidden.before and hidden.after), and so is the
+// Unsorted group once it is all done.
+// Milestones keep their full counts, so progress still tells the whole story, and each says how many
+// finished plans it hides. `hidden` says what was left out, for a "show all" control.
+export function focusProject(project) {
+    const ordered = project.milestones.filter(m => !m.unsorted);
+    const started = m => m.plans.some(plan => plan.status !== 'todo');
+    const first = ordered.findIndex(m => !isComplete(m));
+    let lastStarted = -1;
+    ordered.forEach((m, index) => {
+        if (started(m) && !isComplete(m)) lastStarted = index;
+    });
+    const end = first === -1 ? -1 : Math.min(ordered.length - 1, Math.max(first, lastStarted + 1));
+    const visible = new Set(first === -1 ? [] : ordered.slice(first, end + 1));
+
+    const milestones = project.milestones
+        .filter(m => visible.has(m) || (m.unsorted && !isComplete(m)))
+        .map(m => {
+            const plans = m.plans.filter(plan => plan.status !== 'done');
+            return { ...m, plans, hiddenDone: m.plans.length - plans.length };
+        });
+    const plans = milestones.flatMap(m => m.plans);
+    return {
+        ...project,
+        milestones,
+        plans,
+        hidden: {
+            done: first === -1 ? ordered.length : first,
+            later: first === -1 ? 0 : ordered.length - 1 - end,
+            plans: project.plans.length - plans.length,
+            before: first === -1 ? ordered : ordered.slice(0, first),
+            after: first === -1 ? [] : ordered.slice(end + 1),
+        },
+    };
 }
 
 // Where the "Today" marker sits on the road: before the first dated milestone due after today (a

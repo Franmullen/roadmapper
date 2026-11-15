@@ -3,8 +3,8 @@
 // sits between the stages by due date. Click a plan to open its file, or drag it to another stage to
 // move it there; click a stage's title (or its background) to open the milestone.
 
-import { STATUSES, STATUS_LABELS, isComplete, isMilestoneOverdue, todayMarkerIndex } from '../model.js';
-import { button, dependencyChip, dragPayload, dueChip, el, icon, inlinePrompt, statusBar, statusDot } from '../ui.js';
+import { STATUSES, STATUS_LABELS, isComplete, isMilestoneOverdue, planTotal, todayMarkerIndex } from '../model.js';
+import { button, dependencyChip, dragPayload, dueChip, el, hiddenDoneNote, icon, inlinePrompt, statusBar, statusDot } from '../ui.js';
 
 const MAX_LANE_TAGS = 4;
 
@@ -32,7 +32,7 @@ function planRow(ctx, plan) {
 }
 
 function stage(ctx, milestone) {
-    const total = milestone.plans.length;
+    const total = planTotal(milestone);
     const classes = ['stage'];
     if (milestone.unsorted) classes.push('unsorted');
     if (isComplete(milestone)) classes.push('complete');
@@ -70,9 +70,11 @@ function stage(ctx, milestone) {
         card.appendChild(tags);
     }
 
-    if (total > 0) {
+    const finished = hiddenDoneNote(milestone);
+    if (milestone.plans.length > 0 || finished) {
         const list = el('ol', 'stage-plans');
         for (const plan of milestone.plans) list.appendChild(planRow(ctx, plan));
+        if (finished) list.appendChild(el('li', 'stage-plan-more')).appendChild(finished);
         card.appendChild(list);
     }
 
@@ -82,6 +84,14 @@ function stage(ctx, milestone) {
     });
     ctx.drag.makeDropTarget(card, { folder: milestone.folder });
     return card;
+}
+
+// In a focused view, a short stretch of road standing for the milestones left out; click to show all.
+function collapsedStretch(ctx, count, kind) {
+    const text = kind === 'done' ? `${count} finished` : `${count} later`;
+    const stub = button(`road-stub road-stub-${kind}`, [icon(kind === 'done' ? 'check2-all' : 'three-dots'), el('span', '', text)],
+        ctx.toggleShowAll, `${count} ${kind === 'done' ? 'finished' : 'later'} milestone${count === 1 ? '' : 's'} hidden. Click to show all.`);
+    return stub;
 }
 
 function todayMarker(ctx) {
@@ -101,11 +111,20 @@ export default {
         const line = el('div', 'road');
         const loose = project.milestones.filter(m => m.unsorted);
         const stages = project.milestones.filter(m => !m.unsorted);
-        const markerAt = todayMarkerIndex(stages, ctx.today);
+        // Today is placed against the whole road, hidden stretches included.
+        const hidden = project.hidden;
+        const before = hidden?.before.length ?? 0;
+        const wholeAt = todayMarkerIndex([...(hidden?.before ?? []), ...stages, ...(hidden?.after ?? [])], ctx.today);
+        const markerAt = wholeAt === null ? null : wholeAt - before;   // <0: within the finished stretch
 
         for (const milestone of loose) {
             line.appendChild(stage(ctx, milestone));
             line.appendChild(el('div', 'road-gap'));
+        }
+        if (hidden?.done) {
+            line.appendChild(collapsedStretch(ctx, hidden.done, 'done'));
+            if (markerAt !== null && markerAt < 0) line.appendChild(todayMarker(ctx));
+            if (stages.length) line.appendChild(el('div', 'connector'));
         }
         stages.forEach((milestone, index) => {
             if (index > 0) line.appendChild(el('div', 'connector'));
@@ -113,6 +132,11 @@ export default {
             line.appendChild(stage(ctx, milestone));
         });
         if (markerAt === stages.length) line.appendChild(todayMarker(ctx));
+        if (hidden?.later) {
+            if (stages.length) line.appendChild(el('div', 'connector'));
+            line.appendChild(collapsedStretch(ctx, hidden.later, 'later'));
+            if (markerAt !== null && markerAt > stages.length) line.appendChild(todayMarker(ctx));
+        }
 
         if (stages.length > 0) line.appendChild(el('div', 'connector write-only'));
         const add = button('stage stage-add write-only', [icon('plus-lg'), el('span', '', 'Milestone')]);

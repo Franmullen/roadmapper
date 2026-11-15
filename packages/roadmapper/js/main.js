@@ -10,7 +10,7 @@
 
 import celbridge from '/assets/celbridge-client/celbridge.js';
 import { ContentLoadedReason } from '/assets/celbridge-client/api/document-api.js';
-import { normalizeFolder, parseConfig, serializeConfig, statusCounts } from './model.js';
+import { focusProject, normalizeFolder, parseConfig, serializeConfig, statusCounts } from './model.js';
 import { RootMissingError, createActions } from './actions.js';
 import { createDragController } from './drag.js';
 import { createViewport, createZoomControls } from './viewport.js';
@@ -31,6 +31,8 @@ const refreshButton = document.getElementById('refresh');
 const addMilestoneButton = document.getElementById('add-milestone');
 const addLaneButton = document.getElementById('add-lane');
 const lanesButton = document.getElementById('toggle-lanes');
+const showAllButton = document.getElementById('show-all');
+const hiddenBadge = showAllButton.querySelector('.toolbar-badge');
 const agentGuideButton = document.getElementById('agent-guide');
 const messageEl = document.getElementById('message');
 const messageText = document.getElementById('message-text');
@@ -39,7 +41,8 @@ const createRootButton = document.getElementById('create-root');
 // The .roadmap file's settings, and how this editor is showing them. `ui` starts from the file's
 // defaults and is then kept with the editor state, not written to the file.
 let config = parseConfig('');
-const ui = { view: VIEW_LIST[0].id, showLanes: false, milestone: null };
+// By default the views focus on work now and next (see focusProject); showAll shows everything.
+const ui = { view: VIEW_LIST[0].id, showLanes: false, showAll: false, milestone: null };
 
 let documentResource = '';
 let writable = true;
@@ -122,6 +125,10 @@ const commands = {
     },
     toggleLanes: () => {
         ui.showLanes = !ui.showLanes;
+        render();
+    },
+    toggleShowAll: () => {
+        ui.showAll = !ui.showAll;
         render();
     },
     addLane: name => {
@@ -276,14 +283,16 @@ function render() {
         return;
     }
 
+    // The milestone view always shows a milestone whole; the others focus unless asked to show all.
+    const shown = view === milestoneView || ui.showAll ? project : focusProject(project);
     const ctx = viewContext();
     const content = el('div', 'rm-content');
-    view.render(content, project, ctx);
+    view.render(content, shown, ctx);
 
     if (view.zoomable) {
         boardEl.className = `zoomable view-${view.id}`;
         boardEl.replaceChildren(content, zoomControls.element);
-        view.mounted?.(content, project, ctx);
+        view.mounted?.(content, shown, ctx);
         const key = view.id === 'board' && ui.showLanes ? 'board-lanes' : view.id;
         viewport.attach(content, { key, align: view.fitAlign });
     } else {
@@ -293,7 +302,7 @@ function render() {
         viewport.detach();
         boardEl.className = `view-${view.id}`;
         boardEl.replaceChildren(content);
-        view.mounted?.(content, project, ctx);
+        view.mounted?.(content, shown, ctx);
         boardEl.scrollTop = scrollTop;
     }
 }
@@ -306,6 +315,23 @@ function renderToolbar(view) {
     lanesButton.hidden = !onBoard;
     lanesButton.setAttribute('aria-pressed', String(ui.showLanes));
     addLaneButton.hidden = !(onBoard && ui.showLanes);
+
+    showAllButton.hidden = !project || view === milestoneView;
+    showAllButton.setAttribute('aria-pressed', String(ui.showAll));
+    if (project && !ui.showAll) {
+        const { hidden } = focusProject(project);
+        const parts = [
+            hidden.done && `${hidden.done} finished milestone${hidden.done === 1 ? '' : 's'}`,
+            hidden.later && `${hidden.later} later milestone${hidden.later === 1 ? '' : 's'}`,
+            hidden.plans && `${hidden.plans} plan${hidden.plans === 1 ? '' : 's'}`,
+        ].filter(Boolean);
+        showAllButton.title = parts.length ? `Showing work now and next. Hidden: ${parts.join(', ')}.` : 'Nothing is hidden';
+        hiddenBadge.textContent = String(hidden.plans);
+        hiddenBadge.hidden = !hidden.plans;
+    } else {
+        showAllButton.title = 'Back to work now and next';
+        hiddenBadge.hidden = true;
+    }
 
     if (!project) {
         summaryEl.textContent = '';
@@ -366,6 +392,7 @@ addMilestoneButton.addEventListener('click', () =>
     inlinePrompt(addMilestoneButton, 'Milestone name, then Enter', commands.createMilestone));
 addLaneButton.addEventListener('click', () => inlinePrompt(addLaneButton, 'Lane name, then Enter', commands.addLane));
 lanesButton.addEventListener('click', commands.toggleLanes);
+showAllButton.addEventListener('click', commands.toggleShowAll);
 agentGuideButton.addEventListener('click', commands.writeAgentGuide);
 createRootButton.addEventListener('click', commands.createRoot);
 
@@ -423,6 +450,7 @@ try {
         onRequestState: () => JSON.stringify({
             view: ui.view,
             showLanes: ui.showLanes,
+            showAll: ui.showAll,
             milestone: ui.milestone,
             zoom: viewport.exportMemory(),
             scrollTop: viewport.isAttached() ? 0 : boardEl.scrollTop,
@@ -434,6 +462,7 @@ try {
                 uiRestored = true;
                 if (isView(state?.view)) ui.view = viewId(state.view);
                 if (typeof state?.showLanes === 'boolean') ui.showLanes = state.showLanes;
+                if (typeof state?.showAll === 'boolean') ui.showAll = state.showAll;
                 ui.milestone = typeof state?.milestone === 'string' ? state.milestone : null;
                 viewport.importMemory(state?.zoom);
                 restoreScrollTop = Number(state?.scrollTop) || 0;

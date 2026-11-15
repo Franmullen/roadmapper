@@ -81,6 +81,8 @@ Cards show what a plan is waiting on. A dependency is flagged in red when no pla
 - **Map**: the whole project at once. Lanes are bands, milestones are columns and each plan is a node, with arrows from each plan to the plans that depend on it. Hover a plan to pick out its links; click it to open it. Zoomed out, plans become coloured blocks; zoom in for titles and task counts.
 - **Milestone**: one milestone's plans grouped by status, with links to each plan's dependencies. Use **Back** or Escape to return.
 
+**Focus:** by default the views show work now and next: the milestones from the first unfinished one through the one after the last with work started, without their finished plans. A "✓ N done" note stands in for finished plans, and on the Road, collapsed stretches stand in for hidden milestones. **Show all** on the toolbar shows everything; the editor remembers which you chose.
+
 Road, Board and Map pan and zoom, so any size of project fits on screen:
 
 - Ctrl+wheel (or pinch) zooms at the pointer; the wheel and dragging the background pan.

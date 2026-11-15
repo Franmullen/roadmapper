@@ -5,8 +5,8 @@
 //
 // Nodes keep the same size at every zoom level, so the arrows, drawn once after layout, stay attached.
 
-import { STATUS_LABELS } from '../model.js';
-import { button, describeDependency, dueChip, el, statusBar, statusDot } from '../ui.js';
+import { STATUS_LABELS, planTotal } from '../model.js';
+import { button, describeDependency, dueChip, el, hiddenDoneNote, statusBar, statusDot } from '../ui.js';
 
 const NO_LANE = '';
 const SVG = 'http://www.w3.org/2000/svg';
@@ -32,11 +32,16 @@ function milestoneHead(ctx, milestone) {
     const title = el('div', 'map-head-title');
     title.append(
         button('milestone-title', milestone.title, () => ctx.showMilestone(milestone.folder), `Show ${milestone.title} in detail`),
-        el('span', 'count', `${milestone.counts.done}/${milestone.plans.length}`));
+        el('span', 'count', `${milestone.counts.done}/${planTotal(milestone)}`));
     head.appendChild(title);
     const due = dueChip(milestone, ctx.today);
-    if (due) head.appendChild(due);
-    head.appendChild(statusBar(milestone.counts, milestone.plans.length));
+    const finished = hiddenDoneNote(milestone);
+    if (due || finished) {
+        const meta = el('div', 'meta-row');
+        meta.append(...[due, finished].filter(Boolean));
+        head.appendChild(meta);
+    }
+    head.appendChild(statusBar(milestone.counts, planTotal(milestone)));
     return head;
 }
 

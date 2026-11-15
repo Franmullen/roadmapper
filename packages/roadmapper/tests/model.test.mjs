@@ -5,7 +5,7 @@ import {
     scanTree, deriveStatus, displayName, isOverdue,
     laneOrder, milestoneTemplate, nextMilestoneFolder, normalizeFolder, normalizeStatus, parseConfig, parseFrontMatter,
     planTemplate, serializeConfig, setFrontMatter, slugify, summarizeMarkdown, summarizeMilestone, uniqueFileName,
-    buildProject, statusCounts, todayMarkerIndex, isMilestoneOverdue, parseList, projectResources, dropChanges,
+    buildProject, statusCounts, todayMarkerIndex, isMilestoneOverdue, parseList, projectResources, dropChanges, focusProject, planTotal,
 } from '../js/model.js';
 import { fitState, zoomAt } from '../js/viewport.js';
 
@@ -305,4 +305,40 @@ test('fitState shrinks large content to fit and never enlarges small content', (
     assert.equal(small.x, 400);
     assert.equal(fitState(200, 100, 1000, 600, { padding: 10, align: 'top' }).y, 10);
     assert.equal(fitState(0, 0, 1000, 600).scale, 1);
+});
+
+test('focus keeps work now and next, and hides what is finished or far off', () => {
+    const plan = (milestone, status) => ({ milestone, status, resource: `${milestone}/${status}-${Math.random()}` });
+    const milestone = (name, statuses, unsorted = false) => {
+        const plans = statuses.map(status => plan(name, status));
+        return { folder: name, name, unsorted, plans, counts: statusCounts(plans) };
+    };
+    const project = ms => ({ root: 'p', lanes: [], milestones: ms, plans: ms.flatMap(m => m.plans) });
+
+    // done, active, next, later, later
+    const full = project([
+        milestone('m1', ['done', 'done']),
+        milestone('m2', ['done', 'doing', 'todo']),
+        milestone('m3', ['todo']),
+        milestone('m4', ['todo']),
+        milestone('m5', []),
+    ]);
+    const focused = focusProject(full);
+    assert.deepEqual(focused.milestones.map(m => m.name), ['m2', 'm3']);
+    assert.deepEqual(focused.milestones[0].plans.map(p => p.status), ['doing', 'todo']);
+    assert.equal(focused.milestones[0].hiddenDone, 1);
+    assert.equal(planTotal(focused.milestones[0]), 3);           // counts stay whole
+    assert.deepEqual([focused.hidden.done, focused.hidden.later, focused.hidden.plans], [1, 2, 4]);
+    assert.deepEqual(focused.hidden.after.map(m => m.name), ['m4', 'm5']);
+    assert.equal(focused.plans.length, 3);
+
+    // Nothing started yet: just the first milestone.
+    assert.deepEqual(focusProject(project([milestone('a', ['todo']), milestone('b', ['todo'])])).milestones.map(m => m.name), ['a']);
+    // Everything done: nothing to focus on.
+    assert.equal(focusProject(project([milestone('a', ['done'])])).hidden.done, 1);
+    // Unsorted plans show while any are unfinished.
+    assert.deepEqual(focusProject(project([milestone('Unsorted', ['todo'], true), milestone('a', ['done'])])).milestones.map(m => m.name), ['Unsorted']);
+    // A finished milestone between active ones stays, with its plans hidden.
+    const between = focusProject(project([milestone('a', ['doing']), milestone('b', ['done']), milestone('c', ['review'])]));
+    assert.deepEqual(between.milestones.map(m => [m.name, m.plans.length, m.hiddenDone]), [['a', 1, 0], ['b', 0, 1], ['c', 1, 0]]);
 });
