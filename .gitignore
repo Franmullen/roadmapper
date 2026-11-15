@@ -1,5 +1,7 @@
-# Celbridge machine-local files
-.claude/
+# Celbridge machine-local files (the shared reviewer agents and skills are kept)
+.claude/*
+!.claude/agents/
+!.claude/skills/
 .mcp.json
 *.cel
 
@@ -13,3 +15,6 @@ desktop.ini
 __pycache__/
 node_modules/
 dist/
+
+# Private working notes: drafts, research and scratch from planning discussions
+scratch/

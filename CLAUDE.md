@@ -1,17 +1,18 @@
 # Roadmapper
 
-A Celbridge package (`packages/roadmapper/`) that shows milestone folders of Markdown plans as a board. This repository is also the Celbridge project used to develop it, and it plans its own work with Roadmapper (`roadmapper.roadmap` over `plans/`).
+A Celbridge package (`packages/roadmapper/`) that shows milestone folders of Markdown plans as a roadmap. This repository is also the Celbridge project used to develop it, and it plans its own work with Roadmapper (`roadmapper.roadmap` over `plans/`).
 
 ## Development
 
-- `packages/roadmapper/js/model.js` holds the file conventions as pure logic (settings, front matter, statuses, dependencies, the project model from the folder tree, templates). `js/agents.js` turns that model into text for agents: the CLAUDE.md guide and the brief. Keep Celbridge calls out of both, and cover changes with `node --test packages/roadmapper/tests/*.test.mjs`.
-- `packages/roadmapper/js/actions.js` makes every read and write through the `celbridge-client` API. Views in `js/views/` (one file each, plus `css/views/<id>.css`, listed in `views/index.js`) only draw; `main.js` handles the document lifecycle, file watch, toolbar and view switching.
-- Use pointer events for drag and drop (`js/drag.js`): native HTML5 drag events never fire from a real mouse in Celbridge WebViews.
-- Celbridge only discovers packages when a project loads. A change to `package.toml` or `*.editor.toml` needs a project reload. A change to the page's HTML, CSS or JS needs only a reload of the editor (`webview_reload` on the open `.roadmap` document).
-- To check the editor in the running app, use the Celbridge MCP tools: `webview_screenshot`, `webview_get_console` and `webview_eval` on the open `.roadmap` document.
-- Test write actions on a mock board (`mocks/generated/*.roadmap`, rebuilt by `%run mocks/make_mocks.py`), not on `plans/`.
-- After changing the agent guide (`agents.js`), press **Agent guide** on the board to refresh the section below, then check that an agent can still steer by it. Run a restricted agent like `cel.agent.claude()` does, from the repo root, and give it a plain question ("Where does this project stand?") or the conversion task on `mocks/generated/old-game` (built from `mocks/fixtures/old-game`): `claude -p "..." --strict-mcp-config --mcp-config .mcp.json --tools "WebFetch,WebSearch" --allowedTools "mcp__celbridge__*"`.
-- Bump `package-version` in `packages/roadmapper/package.toml` with each release, and build the release zip with `python scripts/package.py`.
+- **Workflow:** every plan ships on a `plan/<name>` branch through a pull request. The `ship-plan` skill has the steps. The owner accepts work on the Reviews tab, and a merge happens only after that.
+- **Quality gate:** `python scripts/check.py` runs the JS syntax check, the tests, the architecture rules and the zip build. CI runs the same gate.
+- **Review:** use the read-only `feature-reviewer` subagent for each change, and `architecture-reviewer` (the `architecture-audit` skill) at the end of each milestone. Both live in `.claude/agents/`.
+- **Architecture:** read `docs/architecture.md` for the module rules and data flow, and `docs/debt.md` for accepted debt.
+- Celbridge only discovers packages when a project loads. A change to `package.toml` or `*.editor.toml` needs a project reload; HTML, CSS or JS changes need only the `.roadmap` editor reopened. Check the running editor with the Celbridge MCP tools `webview_screenshot`, `webview_get_console` and `webview_eval`.
+- Try write actions on a mock board (`mocks/generated/*.roadmap`, rebuilt by `%run mocks/make_mocks.py`), not on `plans/`.
+- After changing the agent guide (`agents.js`), press **Agent guide** to refresh the section below. Then check that a restricted agent can still steer by it: from the repo root, run `claude -p "..." --strict-mcp-config --mcp-config .mcp.json --tools "WebFetch,WebSearch" --allowedTools "mcp__celbridge__*"` with a plain question, or the conversion task on `mocks/generated/old-game`.
+- `scratch/` is ignored by git, for drafts and notes from planning discussions.
+- To release, bump `package-version` in `packages/roadmapper/package.toml`, then build the zip with `python scripts/package.py`.
 
 <!-- roadmapper:start -->
 ## Roadmap (Roadmapper)

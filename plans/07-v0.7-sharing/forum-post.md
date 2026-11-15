@@ -1,7 +1,7 @@
 ---
 status: todo
 lane: community
-depends: map-view, road-plan-list, mock-trials
+depends: map-view, road-plan-list, mock-trials, go-public
 ---
 # Forum post
 

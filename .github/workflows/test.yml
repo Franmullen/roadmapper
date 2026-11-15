@@ -1,18 +1,22 @@
-name: Tests
+name: Checks
 
 on:
   push:
+    branches: [main]
   pull_request:
 
 jobs:
-  test:
+  check:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
       - uses: actions/setup-node@v4
         with:
           node-version: 22
-      - name: Model and agent tests
-        run: node --test packages/roadmapper/tests/*.test.mjs
-      - name: The release zip builds
-        run: python3 scripts/package.py
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Quality gate
+        run: python scripts/check.py ${{ github.event_name == 'pull_request' && format('--base origin/{0}', github.base_ref) || '' }}
