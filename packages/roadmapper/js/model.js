@@ -1,5 +1,15 @@
-// Pure functions behind the Roadmapper board: settings, front matter, folder tree to columns, and the
-// text Roadmapper writes. No Celbridge calls here, so this file can be tested with plain Node.
+// The Roadmapper model: settings, front matter, and how a folder of Markdown becomes a project of
+// milestones, plans and lanes. Also the text Roadmapper writes. This is the only module that knows the
+// file conventions, and it makes no Celbridge calls, so it can be tested with plain Node.
+//
+// The project every view draws from:
+//   {
+//     root,                                   // the board's folder
+//     lanes: ['core', 'ui', ...],             // display order
+//     milestones: [{ folder, name, title, due, description, metaResource, unsorted, truncated,
+//                    plans: [...], counts: { todo, doing, review, done, blocked } }],
+//     plans: [{ resource, name, path, milestone, title, status, statusExplicit, lane, done, total }],
+//   }
 
 export const STATUSES = ['todo', 'doing', 'review', 'done', 'blocked'];
 
@@ -16,8 +26,11 @@ const MILESTONE_FILES = ['readme.md', '_milestone.md'];
 
 // --- Settings (.roadmap file) ---
 
+export const VIEWS = ['pipeline', 'board'];
+export const DEFAULT_VIEW = 'pipeline';
+
 export function parseConfig(text) {
-    const config = { root: 'plans', lanes: [], showLanes: false };
+    const config = { root: 'plans', lanes: [], showLanes: false, view: DEFAULT_VIEW };
     if (!text || !text.trim()) {
         return config;
     }
@@ -29,11 +42,13 @@ export function parseConfig(text) {
         config.lanes = [...new Set(raw.lanes.filter(lane => typeof lane === 'string').map(lane => lane.trim()).filter(Boolean))];
     }
     config.showLanes = raw.showLanes === true;
+    if (VIEWS.includes(raw.view)) config.view = raw.view;
     return config;
 }
 
 export function serializeConfig(config) {
     const out = { root: config.root };
+    if (config.view !== DEFAULT_VIEW) out.view = config.view;
     if (config.lanes.length > 0) out.lanes = config.lanes;
     if (config.showLanes) out.showLanes = true;
     return JSON.stringify(out, null, 2) + '\n';
@@ -237,6 +252,62 @@ export function laneOrder(configLanes, cards) {
 
 export function isOverdue(due, today, allDone) {
     return Boolean(due) && !allDone && due < today;
+}
+
+// --- The project ---
+
+export function statusCounts(plans) {
+    const counts = Object.fromEntries(STATUSES.map(status => [status, 0]));
+    for (const plan of plans) counts[plan.status]++;
+    return counts;
+}
+
+export function isComplete(milestone) {
+    return milestone.plans.length > 0 && milestone.counts.done === milestone.plans.length;
+}
+
+export function isMilestoneOverdue(milestone, today) {
+    return isOverdue(milestone.due, today, isComplete(milestone));
+}
+
+// Builds the project every view draws from. `contents` maps resource keys to file text, for every plan
+// and milestone README the tree names.
+export function buildProject(tree, root, contents, config) {
+    const milestones = buildColumns(tree, root).map(column => {
+        const meta = column.metaResource
+            ? summarizeMilestone(contents.get(column.metaResource))
+            : { title: null, due: null, description: '' };
+        const plans = column.cards.map(card => ({
+            resource: card.resource,
+            name: card.name,
+            path: card.resource.slice(column.folder.length + 1),
+            milestone: column.folder,
+            ...summarizeMarkdown(contents.get(card.resource), card.name),
+        }));
+        return {
+            folder: column.folder,
+            name: column.name,
+            title: column.unsorted ? 'Unsorted' : (meta.title || displayName(column.name)),
+            due: meta.due,
+            description: meta.description,
+            metaResource: column.metaResource,
+            unsorted: column.unsorted,
+            truncated: column.truncated === true,
+            plans,
+            counts: statusCounts(plans),
+        };
+    });
+    const plans = milestones.flatMap(milestone => milestone.plans);
+    return { root, milestones, plans, lanes: laneOrder(config.lanes, plans) };
+}
+
+// Where the "Today" marker sits in the pipeline: before the first dated milestone due after today (a
+// milestone due today sits before the marker), or at the end when every dated one is due by today.
+// Null when no milestone has a date.
+export function todayMarkerIndex(milestones, today) {
+    if (!milestones.some(milestone => milestone.due)) return null;
+    const index = milestones.findIndex(milestone => milestone.due && milestone.due > today);
+    return index === -1 ? milestones.length : index;
 }
 
 // --- Creating plans and milestones ---

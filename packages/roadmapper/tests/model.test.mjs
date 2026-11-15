@@ -5,8 +5,9 @@ import {
     AGENT_SECTION_END, AGENT_SECTION_START, agentInstructions, buildColumns, deriveStatus, displayName, isOverdue,
     laneOrder, milestoneTemplate, nextMilestoneFolder, normalizeFolder, normalizeStatus, parseConfig, parseFrontMatter,
     planTemplate, serializeConfig, setFrontMatter, slugify, summarizeMarkdown, summarizeMilestone, uniqueFileName,
-    upsertSection,
-} from '../js/scan.js';
+    upsertSection, buildProject, statusCounts, todayMarkerIndex, isMilestoneOverdue,
+} from '../js/model.js';
+import { fitState, zoomAt } from '../js/viewport.js';
 
 const file = name => ({ name, type: 'file' });
 const folder = (name, children = []) => ({ name, type: 'folder', children });
@@ -14,9 +15,11 @@ const folder = (name, children = []) => ({ name, type: 'folder', children });
 // --- Settings ---
 
 test('config defaults, round-trips, and keeps only what is set', () => {
-    assert.deepEqual(parseConfig(''), { root: 'plans', lanes: [], showLanes: false });
+    assert.deepEqual(parseConfig(''), { root: 'plans', lanes: [], showLanes: false, view: 'pipeline' });
+    assert.equal(parseConfig('{"view":"board"}').view, 'board');
+    assert.equal(parseConfig('{"view":"nonsense"}').view, 'pipeline');
     assert.deepEqual(parseConfig('{"root":"project:docs/milestones/"}').root, 'docs/milestones');
-    const config = { root: 'a/b', lanes: ['core', 'ui'], showLanes: true };
+    const config = { root: 'a/b', lanes: ['core', 'ui'], showLanes: true, view: 'board' };
     assert.deepEqual(parseConfig(serializeConfig(config)), config);
     assert.equal(serializeConfig({ root: 'plans', lanes: [], showLanes: false }), '{\n  "root": "plans"\n}\n');
     assert.deepEqual(parseConfig('{"lanes":[" ui ","ui","",3]}').lanes, ['ui']);
@@ -190,4 +193,75 @@ test('upsertSection appends once, then replaces in place', () => {
     const second = upsertSection(first + '\nAfter.\n', `${AGENT_SECTION_START}\nv2\n${AGENT_SECTION_END}`);
     assert.equal(second, `# Project\n\nNotes.\n\n${AGENT_SECTION_START}\nv2\n${AGENT_SECTION_END}\n\nAfter.\n`);
     assert.equal(upsertSection('', 'S'), 'S\n');
+});
+
+// --- The project ---
+
+test('buildProject joins folders, READMEs and plans into one project', () => {
+    const tree = folder('plans', [
+        file('idea.md'),
+        folder('01-alpha', [file('README.md'), file('a.md'), file('b.md')]),
+        folder('02-beta', [file('c.md')]),
+    ]);
+    const contents = new Map([
+        ['plans/01-alpha/README.md', '---\ndue: 2026-12-01\n---\n# Alpha\n\nFirst cut.\n'],
+        ['plans/01-alpha/a.md', '---\nstatus: done\nlane: core\n---\n# A\n'],
+        ['plans/01-alpha/b.md', '---\nlane: ui\n---\n- [x] one\n- [ ] two\n'],
+        ['plans/02-beta/c.md', '---\nstatus: blocked\nlane: agents\n---\n# C\n'],
+    ]);
+    const project = buildProject(tree, 'plans', contents, { lanes: ['ui'] });
+
+    assert.deepEqual(project.milestones.map(m => m.title), ['Unsorted', 'Alpha', 'Beta']);
+    const alpha = project.milestones[1];
+    assert.equal(alpha.due, '2026-12-01');
+    assert.equal(alpha.description, 'First cut.');
+    assert.deepEqual(alpha.counts, { todo: 0, doing: 1, review: 0, done: 1, blocked: 0 });
+    assert.deepEqual(alpha.plans.map(p => [p.path, p.milestone, p.status, p.lane]),
+        [['a.md', 'plans/01-alpha', 'done', 'core'], ['b.md', 'plans/01-alpha', 'doing', 'ui']]);
+    assert.equal(project.plans.length, 4);
+    assert.deepEqual(project.lanes, ['ui', 'agents', 'core']);
+});
+
+test('statusCounts counts every status', () => {
+    assert.deepEqual(statusCounts([{ status: 'done' }, { status: 'done' }, { status: 'todo' }]),
+        { todo: 1, doing: 0, review: 0, done: 2, blocked: 0 });
+});
+
+test('a milestone is overdue only while it has unfinished plans', () => {
+    const milestone = (due, statuses) => ({ due, plans: statuses.map(status => ({ status })), counts: statusCounts(statuses.map(status => ({ status }))) });
+    assert.equal(isMilestoneOverdue(milestone('2026-11-01', ['done', 'todo']), '2026-11-15'), true);
+    assert.equal(isMilestoneOverdue(milestone('2026-11-01', ['done']), '2026-11-15'), false);
+    assert.equal(isMilestoneOverdue(milestone('2026-11-01', []), '2026-11-15'), true);
+});
+
+test('the Today marker sits before the first milestone due after today', () => {
+    const m = due => ({ due });
+    assert.equal(todayMarkerIndex([m('2026-11-01'), m('2026-11-20'), m('2026-12-01')], '2026-11-15'), 1);
+    assert.equal(todayMarkerIndex([m('2026-11-01'), m(null), m('2026-11-15')], '2026-11-15'), 3);
+    assert.equal(todayMarkerIndex([m('2026-11-15'), m('2026-11-29')], '2026-11-15'), 1);
+    assert.equal(todayMarkerIndex([m('2026-11-01')], '2026-11-15'), 1);
+    assert.equal(todayMarkerIndex([m(null), m(null)], '2026-11-15'), null);
+});
+
+// --- Viewport math ---
+
+test('zoomAt keeps the point under the pointer still', () => {
+    const next = zoomAt({ scale: 1, x: 0, y: 0 }, 2, 100, 50);
+    assert.deepEqual(next, { scale: 2, x: -100, y: -50 });
+    // The content point (100, 50) was at screen (100, 50) and still is.
+    assert.equal(100 * next.scale + next.x, 100);
+    assert.equal(zoomAt({ scale: 2, x: 0, y: 0 }, 10, 0, 0).scale, 2.5);
+    assert.equal(zoomAt({ scale: 0.2, x: 0, y: 0 }, 0.1, 0, 0).scale, 0.15);
+});
+
+test('fitState shrinks large content to fit and never enlarges small content', () => {
+    const big = fitState(2000, 500, 1000, 600, { padding: 0 });
+    assert.equal(big.scale, 0.5);
+    assert.equal(big.x, 0);
+    assert.equal(big.y, (600 - 250) / 2);
+    const small = fitState(200, 100, 1000, 600, { padding: 10 });
+    assert.equal(small.scale, 1);
+    assert.equal(small.x, 400);
+    assert.equal(fitState(200, 100, 1000, 600, { padding: 10, align: 'top' }).y, 10);
+    assert.equal(fitState(0, 0, 1000, 600).scale, 1);
 });

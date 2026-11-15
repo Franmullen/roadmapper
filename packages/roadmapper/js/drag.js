@@ -14,7 +14,9 @@ const DRAG_THRESHOLD_PX = 5;
 const EDGE_SCROLL_PX = 40;
 const EDGE_SCROLL_STEP = 18;
 
-export function createDragController({ onDrop, canDrag = () => true, scrollContainer = null }) {
+// Options for a zoomed canvas: `getScale` sizes the ghost to match the zoom, and `onEdge(dx, dy)` is called
+// instead of scrolling `scrollContainer` while the pointer is near its edge (a viewport pans instead).
+export function createDragController({ onDrop, canDrag = () => true, scrollContainer = null, getScale = () => 1, onEdge = null }) {
     const payloads = new WeakMap();
     const targets = new WeakMap();
 
@@ -44,9 +46,11 @@ export function createDragController({ onDrop, canDrag = () => true, scrollConta
     function start() {
         const { element } = pending;
         const rect = element.getBoundingClientRect();
+        const scale = getScale() || 1;
         const ghost = element.cloneNode(true);
         ghost.classList.add('rm-drag-ghost');
-        ghost.style.width = `${rect.width}px`;
+        ghost.style.width = `${rect.width / scale}px`;
+        ghost.style.transform = `scale(${scale}) rotate(1.5deg)`;
         document.body.appendChild(ghost);
         element.classList.add('dragging');
         document.body.classList.add('rm-is-dragging');
@@ -65,10 +69,19 @@ export function createDragController({ onDrop, canDrag = () => true, scrollConta
     function edgeScroll(x, y) {
         if (!scrollContainer) return;
         const rect = scrollContainer.getBoundingClientRect();
-        if (x < rect.left + EDGE_SCROLL_PX) scrollContainer.scrollLeft -= EDGE_SCROLL_STEP;
-        else if (x > rect.right - EDGE_SCROLL_PX) scrollContainer.scrollLeft += EDGE_SCROLL_STEP;
-        if (y < rect.top + EDGE_SCROLL_PX) scrollContainer.scrollTop -= EDGE_SCROLL_STEP;
-        else if (y > rect.bottom - EDGE_SCROLL_PX) scrollContainer.scrollTop += EDGE_SCROLL_STEP;
+        let dx = 0;
+        let dy = 0;
+        if (x < rect.left + EDGE_SCROLL_PX) dx = -EDGE_SCROLL_STEP;
+        else if (x > rect.right - EDGE_SCROLL_PX) dx = EDGE_SCROLL_STEP;
+        if (y < rect.top + EDGE_SCROLL_PX) dy = -EDGE_SCROLL_STEP;
+        else if (y > rect.bottom - EDGE_SCROLL_PX) dy = EDGE_SCROLL_STEP;
+        if (!dx && !dy) return;
+        if (onEdge) {
+            onEdge(dx, dy);
+        } else {
+            scrollContainer.scrollLeft += dx;
+            scrollContainer.scrollTop += dy;
+        }
     }
 
     function finish(drop) {

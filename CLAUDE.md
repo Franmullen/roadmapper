@@ -4,8 +4,9 @@ A Celbridge package (`packages/roadmapper/`) that shows milestone folders of Mar
 
 ## Development
 
-- `packages/roadmapper/js/scan.js` holds all pure logic (settings, front matter, folder tree to columns, templates, agent instructions). Keep Celbridge calls out of it, and cover changes with `node --test packages/roadmapper/tests/`.
-- `packages/roadmapper/js/board.js` is the editor page: document lifecycle, file watch, rendering, drag and drop, and every write to plan files, all through the `celbridge-client` API.
+- `packages/roadmapper/js/model.js` holds all pure logic (settings, front matter, statuses, the project model from the folder tree, templates, agent instructions). Keep Celbridge calls out of it, and cover changes with `node --test packages/roadmapper/tests/`.
+- `packages/roadmapper/js/actions.js` makes every read and write through the `celbridge-client` API. Views in `js/views/` (one file each, listed in `views/index.js`) only draw; `main.js` handles the document lifecycle, file watch, toolbar and view switching.
+- Use pointer events for drag and drop (`js/drag.js`): native HTML5 drag events never fire from a real mouse in Celbridge WebViews.
 - Celbridge only discovers packages when a project loads. A change to `package.toml` or `*.editor.toml` needs a project reload. A change to the page's HTML, CSS or JS needs only a reload of the editor (`webview_reload` on the open `.roadmap` document).
 - To check the editor in the running app, use the Celbridge MCP tools: `webview_screenshot`, `webview_get_console` and `webview_eval` on the open `.roadmap` document.
 - Test write actions on a mock board (`mocks/generated/*.roadmap`, rebuilt by `%run mocks/make_mocks.py`), not on `plans/`.

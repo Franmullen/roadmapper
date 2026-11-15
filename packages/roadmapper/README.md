@@ -15,6 +15,8 @@ There's no separate database: **your folders and Markdown files are the plan**. 
    }
    ```
 
+   Optional settings: `"lanes": ["core", "ui"]` and `"showLanes": true` for the lanes grid, and `"view": "pipeline"` or `"board"` for the view it opens in. The board saves these itself as you use it.
+
 3. Open it. If the folder is empty, use **+ Milestone** to start.
 
 ## How files map to the board
@@ -56,6 +58,18 @@ lane: ui
 - [ ] Write the lane into front matter
 ```
 
+## Views
+
+- **Pipeline** (the default): one stage per milestone, in order, with its due date, plans done, a bar split by status and the lanes involved. A **Today** marker sits between the milestones due before and after today. Overdue stages turn red and finished ones show a tick. Click a stage to open that milestone.
+- **Board**: a column per milestone with its plan cards, or the lanes grid when **Lanes** is on.
+- **Milestone**: one milestone's plans grouped by status. Use **Back** or Escape to return.
+
+Both Pipeline and Board pan and zoom, so any size of project fits on screen:
+
+- Ctrl+wheel (or pinch) zooms at the pointer; the wheel and dragging the background pan.
+- The controls in the corner (or the keys `-`, `+` and `0`) zoom out, zoom in and fit to the screen. Click the percentage to return to 100%.
+- A view keeps fitting itself to the window until you move it, and each view remembers its own zoom.
+
 ## Using the board
 
 - **Click a card** to open its plan.
@@ -69,12 +83,15 @@ lane: ui
 
 ## AI agents
 
-Press the 🤖 button on the toolbar to add a Roadmapper section to the project's `CLAUDE.md`. Claude Code reads that file, including when it's launched from Celbridge with `cel.agent.claude()`, so agents learn how to add milestones and plans, update statuses, tick tasks and reschedule work. Press it again after changing lanes to refresh the section. Everything outside its `<!-- roadmapper:start -->` / `<!-- roadmapper:end -->` markers is left alone.
+Press **Agent guide** on the toolbar to add a Roadmapper section to the project's `CLAUDE.md`. Claude Code reads that file, including when it's launched from Celbridge with `cel.agent.claude()`, so agents learn how to add milestones and plans, update statuses, tick tasks and reschedule work. Press it again after changing lanes to refresh the section. Everything outside its `<!-- roadmapper:start -->` / `<!-- roadmapper:end -->` markers is left alone.
 
 ## Development
 
-- `js/scan.js` is the pure logic (settings, front matter, columns, templates, agent instructions). Test it with `node --test packages/roadmapper/tests/`.
-- `js/board.js` is the editor: document lifecycle, file watch, rendering, drag and drop, and file writes through the `celbridge-client` API.
+- `js/model.js` is the pure logic: settings, front matter, statuses, the project model built from the folder tree, templates and agent instructions. Test it with `node --test packages/roadmapper/tests/`.
+- `js/actions.js` makes every read and write through the `celbridge-client` API.
+- `js/views/` holds one file per view. Each exports `{ id, label, icon, zoomable, fitAlign, render(container, project, ctx) }` and only draws; add a view by adding a file and listing it in `views/index.js`.
+- `js/viewport.js` (pan and zoom), `js/drag.js` (pointer-event drag and drop; native HTML5 drag doesn't work in Celbridge's WebView) and `js/ui.js` (shared pieces such as cards and chips) are used by the views.
+- `js/main.js` is the editor itself: document lifecycle, file watch, toolbar and view switching.
 
 ## License
 
