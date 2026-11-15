@@ -213,6 +213,47 @@ function openTasks(body) {
     return { openTasks: tasks, followUps };
 }
 
+const MARKDOWN_LINK = /\[([^\]]+)\]\(([^)\s]+)\)/g;
+
+// A task's text as parts, with its Markdown links to project files resolved against the plan's folder:
+// [{ text }, { text, resource }, ...]. Web links and links that leave the project stay plain text.
+export function taskParts(task, planResource) {
+    const parts = [];
+    let at = 0;
+    for (const match of task.matchAll(MARKDOWN_LINK)) {
+        if (match.index > at) parts.push({ text: task.slice(at, match.index) });
+        const resource = resolveLink(match[2], planResource);
+        parts.push(resource ? { text: match[1], resource } : { text: match[1] });
+        at = match.index + match[0].length;
+    }
+    if (at < task.length) parts.push({ text: task.slice(at) });
+    return parts;
+}
+
+// The task with links reduced to their labels, for tooltips.
+export function taskText(task) {
+    return task.replace(MARKDOWN_LINK, '$1');
+}
+
+function resolveLink(target, planResource) {
+    if (/^[a-z][\w+.-]*:/i.test(target) || target.startsWith('#')) return null;
+    let path;
+    try {
+        path = decodeURIComponent(target.split('#')[0]);
+    } catch {
+        path = target.split('#')[0];
+    }
+    const segments = path.startsWith('/') ? [] : planResource.split('/').slice(0, -1);
+    for (const segment of path.split('/')) {
+        if (segment === '' || segment === '.') continue;
+        if (segment === '..') {
+            if (!segments.length) return null;
+            segments.pop();
+        } else segments.push(segment);
+    }
+    return segments.length ? segments.join('/') : null;
+}
+
 // Approving a review: the plan is done and its remaining tasks (usually the checks) are ticked.
 export function approveReview(text) {
     const updated = setFrontMatter(text, { status: 'done' });

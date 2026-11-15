@@ -1,7 +1,7 @@
 // Small DOM building blocks shared by the views. Nothing here reads or writes files: actions arrive
 // through the view context (see main.js).
 
-import { STATUSES, STATUS_LABELS, isComplete, isMilestoneOverdue, planTotal } from './model.js';
+import { STATUSES, STATUS_LABELS, isComplete, isMilestoneOverdue, planTotal, taskParts, taskText } from './model.js';
 
 export function el(tag, className, text) {
     const element = document.createElement(tag);
@@ -155,7 +155,22 @@ export function ownerTag(plan) {
 
 // What is left to check on a plan in review: its unticked tasks.
 export function reviewChecks(plan) {
-    return plan.openTasks.length ? ['To check:', ...plan.openTasks.map(task => `- ${task}`)].join('\n') : 'Nothing to check.';
+    return plan.openTasks.length ? ['To check:', ...plan.openTasks.map(task => `- ${taskText(task)}`)].join('\n') : 'Nothing to check.';
+}
+
+// The plan's unticked tasks as a list. Links to project files open them in Celbridge.
+export function taskList(ctx, plan) {
+    const list = el('ul', 'review-checks');
+    for (const task of plan.openTasks) {
+        const item = el('li');
+        for (const part of taskParts(task, plan.resource)) {
+            item.append(part.resource
+                ? button('task-link', part.text, event => { event.stopPropagation(); ctx.open(part.resource); }, part.resource)
+                : part.text);
+        }
+        list.appendChild(item);
+    }
+    return list;
 }
 
 // Approve or send back a plan in review. Compact shows icons only. Clicks here never open or drag the plan.

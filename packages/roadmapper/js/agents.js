@@ -164,7 +164,7 @@ export function agentInstructions(config, roadmapResource) {
         '- **Pick work** that is ready: `status: todo` with every dependency done, in the earliest unfinished milestone, in your lane if you were given one.',
         '- **Before you start**, set `status: doing` and `owner:` to your name, so people and other agents can see it is taken.',
         '- **As you go**, tick each checkbox (`- [x]`) when it is finished. Work you discover becomes a new plan file in the milestone where it belongs.',
-        '- **When it is all done**, set `status: review` if a person should check it, otherwise `done`. Leave what the person should check as unticked `- [ ] Check: …` tasks; the board shows them to the reviewer. If you cannot continue, set `status: blocked` and add a sentence saying why.',
+        '- **When it is all done**, set `status: review` if a person should check it, otherwise `done`. Leave what the person should check as unticked `- [ ] Check: …` tasks; the board shows them to the reviewer. Link each file they should read, relative to the plan (`[architecture](../../docs/architecture.md)`), so it opens with one click. If you cannot continue, set `status: blocked` and add a sentence saying why.',
         '',
         '### Ideas',
         '',

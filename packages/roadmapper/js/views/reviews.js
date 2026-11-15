@@ -2,7 +2,7 @@
 // what approving it would unblock, with Approve (done) and Follow up (send it back with more to do).
 // Approving is how a person lets the agent move on: plans that depend on it become ready.
 
-import { button, el, ownerTag, reviewControls } from '../ui.js';
+import { button, el, ownerTag, reviewControls, taskList } from '../ui.js';
 
 // Plans that wait only on this one, so approving it makes them ready to start.
 function unblockedBy(plan, byResource) {
@@ -27,9 +27,7 @@ function reviewItem(ctx, plan, milestones, byResource) {
 
     if (plan.openTasks.length) {
         item.appendChild(el('div', 'review-label', 'To check'));
-        const list = el('ul', 'review-checks');
-        for (const task of plan.openTasks) list.appendChild(el('li', '', task));
-        item.appendChild(list);
+        item.appendChild(taskList(ctx, plan));
     }
     const unblocks = unblockedBy(plan, byResource);
     if (unblocks.length) {

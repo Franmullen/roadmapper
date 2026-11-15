@@ -16,4 +16,5 @@ Fast agent work needs checks that don't depend on anyone remembering them. There
 - [x] `docs/architecture.md` and `docs/debt.md`; CLAUDE.md points to them
 - [x] `scratch/` is ignored, for discussion drafts; the Celbridge feedback drafts moved there
 - [x] Shipped through its own flow: fresh review, then PR and CI
-- [ ] Check: read the `ship-plan` skill and `docs/architecture.md`; do they match how you want to work?
+- [x] Review checks link the files to read; agents are told to link them
+- [ ] Check: read the [ship-plan skill](../../.claude/skills/ship-plan/SKILL.md) and [architecture](../../docs/architecture.md); do they match how you want to work?
