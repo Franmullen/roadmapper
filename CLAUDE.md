@@ -51,10 +51,11 @@ What this delivers, in a sentence or two.
 
 ### Working from the roadmap
 
+- **Follow-ups come first.** A person reviewing on the board can send a plan back: it returns to `status: todo` with unticked tasks under `## Follow-ups`. Do those before new work, then return the plan to review.
 - **Pick work** that is ready: `status: todo` with every dependency done, in the earliest unfinished milestone, in your lane if you were given one.
 - **Before you start**, set `status: doing` and `owner:` to your name, so people and other agents can see it is taken.
 - **As you go**, tick each checkbox (`- [x]`) when it is finished. Work you discover becomes a new plan file in the milestone where it belongs.
-- **When it is all done**, set `status: review` if a person should check it, otherwise `done`. If you cannot continue, set `status: blocked` and add a sentence saying why.
+- **When it is all done**, set `status: review` if a person should check it, otherwise `done`. Leave what the person should check as unticked `- [ ] Check: …` tasks; the board shows them to the reviewer. If you cannot continue, set `status: blocked` and add a sentence saying why.
 
 ### Presenting or building a roadmap
 

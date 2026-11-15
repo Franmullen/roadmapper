@@ -140,6 +140,8 @@ const commands = {
     createPlan: (folder, lane, title) => act(() => actions.createPlan(project, folder, lane, title)),
     createMilestone: title => act(() => actions.createMilestone(project, config, title, rootMissing), { rewatch: rootMissing }),
     updatePlan: (resource, updates) => act(() => actions.updatePlan(resource, updates)),
+    approvePlan: resource => act(() => actions.reviewPlan(resource)),
+    sendBackPlan: (resource, followUps) => act(() => actions.reviewPlan(resource, followUps)),
     createMilestoneReadme: milestone => act(() => actions.createMilestoneReadme(milestone)),
     createRoot: () => act(() => actions.createRoot(config), { rewatch: true }),
     writeAgentGuide: () => actions.writeAgentGuide(config, project?.lanes ?? config.lanes, documentResource),

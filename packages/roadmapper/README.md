@@ -100,12 +100,21 @@ Road, Board and Map pan and zoom, so any size of project fits on screen:
 - **Click a folder name** to show that folder in the Explorer.
 - A due date turns red once it has passed and the milestone still has work left.
 
+### Reviewing work
+
+A plan in `review` shows two buttons on the Road, the Board and the milestone view. The milestone view also lists what is left to check: the plan's unticked tasks.
+
+- **Approve** sets `status: done` and ticks the remaining tasks.
+- **Follow up** asks for what still needs doing (separate several with `;`). Each one becomes an unticked task under a `## Follow-ups` heading in the plan, and the plan goes back to `todo`. The board marks it "N follow-ups", and the agent brief lists it first, so an agent picks it up before new work.
+
+A good loop is to review on the board, send back what needs work, and then ask an agent to "do the follow-ups".
+
 ## AI agents
 
 An agent steers by the roadmap through files alone; there is nothing to click.
 
-- **Agent guide** on the toolbar adds a Roadmapper section to the project's `CLAUDE.md`, which Claude Code reads, including when it's launched from Celbridge with `cel.agent.claude()`. The section explains the format, how to read the roadmap, and how to work from it: pick a ready plan, set `status: doing` and `owner:`, tick tasks as they're done, and finish in `review`. Press it again after changing lanes. Everything outside its `<!-- roadmapper:start -->` / `<!-- roadmapper:end -->` markers is left alone.
-- **The brief:** while a board is open, it keeps a short summary in Celbridge's `temp:roadmapper/` folder (local to your machine, never committed). It lists the milestones, what's in progress, what's ready to start, what's waiting or blocked, and broken dependencies, so an agent can understand the roadmap in one read.
+- **Agent guide** on the toolbar adds a Roadmapper section to the project's `CLAUDE.md`, which Claude Code reads, including when it's launched from Celbridge with `cel.agent.claude()`. The section explains the format, how to read the roadmap, and how to work from it: do any review follow-ups first, pick a ready plan, set `status: doing` and `owner:`, tick tasks as they're done, and finish in `review` with what to check left as unticked tasks. Press it again after changing lanes. Everything outside its `<!-- roadmapper:start -->` / `<!-- roadmapper:end -->` markers is left alone.
+- **The brief:** while a board is open, it keeps a short summary in Celbridge's `temp:roadmapper/` folder (local to your machine, never committed). It lists the milestones, plans sent back from review, what's in progress, what's ready to start, what's waiting or blocked, and broken dependencies, so an agent can understand the roadmap in one read.
 
 So you can simply ask an agent things like:
 

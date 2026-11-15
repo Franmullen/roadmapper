@@ -6,6 +6,7 @@ import {
     laneOrder, milestoneTemplate, nextMilestoneFolder, normalizeFolder, normalizeStatus, parseConfig, parseFrontMatter,
     planTemplate, serializeConfig, setFrontMatter, slugify, summarizeMarkdown, summarizeMilestone, uniqueFileName,
     buildProject, statusCounts, todayMarkerIndex, isMilestoneOverdue, parseList, projectResources, dropChanges, focusProject, planTotal,
+    approveReview, addFollowUps,
 } from '../js/model.js';
 import { fitState, zoomAt } from '../js/viewport.js';
 
@@ -93,12 +94,12 @@ test('status is derived from checkboxes when not set', () => {
 test('summary takes title, tasks, status and lane', () => {
     const md = '---\nstatus: review\nlane: ui\n---\nIntro\n# Real Title #\n- [x] one\n  * [X] two\n- [ ] three\n- not a task\n';
     assert.deepEqual(summarizeMarkdown(md, 'x.md'),
-        { title: 'Real Title', done: 2, total: 3, status: 'review', statusExplicit: true, lane: 'ui', owner: '', dependsOn: [] });
+        { title: 'Real Title', done: 2, total: 3, status: 'review', statusExplicit: true, lane: 'ui', owner: '', dependsOn: [], openTasks: ['three'], followUps: [] });
 });
 
 test('summary falls back to the file name and derived status', () => {
     assert.deepEqual(summarizeMarkdown('', 'auth-flow.md'),
-        { title: 'auth-flow', done: 0, total: 0, status: 'todo', statusExplicit: false, lane: '', owner: '', dependsOn: [] });
+        { title: 'auth-flow', done: 0, total: 0, status: 'todo', statusExplicit: false, lane: '', owner: '', dependsOn: [], openTasks: [], followUps: [] });
     assert.equal(summarizeMarkdown('- [x] a\n- [x] b', 'a.MD').status, 'done');
     assert.equal(summarizeMarkdown('---\nstatus: weird\n---\n- [x] a\n- [ ] b', 'a.md').status, 'doing');
 });
@@ -341,4 +342,26 @@ test('focus keeps work now and next, and hides what is finished or far off', () 
     // A finished milestone between active ones stays, with its plans hidden.
     const between = focusProject(project([milestone('a', ['doing']), milestone('b', ['done']), milestone('c', ['review'])]));
     assert.deepEqual(between.milestones.map(m => [m.name, m.plans.length, m.hiddenDone]), [['a', 1, 0], ['b', 0, 1], ['c', 1, 0]]);
+});
+
+test('approving a review marks it done and ticks what was left', () => {
+    const text = '---\nstatus: review\nowner: claude\n---\n# A\n\n- [x] build\n- [ ] Check: it works\n';
+    assert.equal(approveReview(text), '---\nstatus: done\nowner: claude\n---\n# A\n\n- [x] build\n- [x] Check: it works\n');
+    const plan = summarizeMarkdown(text, 'a.md');
+    assert.deepEqual(plan.openTasks, ['Check: it works']);
+    assert.deepEqual(plan.followUps, []);
+});
+
+test('sending a plan back adds follow-ups and returns it to todo', () => {
+    const text = '---\nstatus: review\n---\n# A\n\n## Tasks\n\n- [x] build\n\n## Notes\n\nSomething.\n';
+    const once = addFollowUps(text, ['Fix the label ', ' ', 'Add a test']);
+    assert.equal(once, '---\nstatus: todo\n---\n# A\n\n## Tasks\n\n- [x] build\n\n## Notes\n\nSomething.\n\n## Follow-ups\n\n- [ ] Fix the label\n- [ ] Add a test\n');
+    const plan = summarizeMarkdown(once, 'a.md');
+    assert.equal(plan.status, 'todo');
+    assert.deepEqual(plan.followUps, ['Fix the label', 'Add a test']);
+
+    // A second round goes at the end of the existing section, before any heading after it.
+    const twice = addFollowUps(once + '\n## After\n', ['More']);
+    assert.match(twice, /- \[ \] Add a test\n- \[ \] More\n\n## After/);
+    assert.equal(addFollowUps('# A\r\n\r\n## Follow-ups\r\n', ['x']), '---\r\nstatus: todo\r\n---\r\n# A\r\n\r\n## Follow-ups\r\n\r\n- [ ] x\r\n');
 });

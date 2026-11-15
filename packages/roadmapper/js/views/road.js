@@ -4,20 +4,28 @@
 // move it there; click a stage's title (or its background) to open the milestone.
 
 import { STATUSES, STATUS_LABELS, isComplete, isMilestoneOverdue, planTotal, todayMarkerIndex } from '../model.js';
-import { button, dependencyChip, dragPayload, dueChip, el, hiddenDoneNote, icon, inlinePrompt, statusBar, statusDot } from '../ui.js';
+import {
+    button, dependencyChip, dragPayload, dueChip, el, followUpChip, hiddenDoneNote, icon, inlinePrompt, reviewChecks, reviewControls,
+    statusBar, statusDot,
+} from '../ui.js';
 
 const MAX_LANE_TAGS = 4;
 
 function planRow(ctx, plan) {
     const row = el('li', 'stage-plan');
     row.tabIndex = 0;
-    row.title = `Open ${plan.path}`;
+    row.title = plan.status === 'review' ? `Open ${plan.path}\n\nIn review. ${reviewChecks(plan)}` : `Open ${plan.path}`;
     row.append(statusDot(plan.status), el('span', 'stage-plan-title', plan.title));
     const deps = dependencyChip(plan);
     if (deps) row.appendChild(deps);
+    const followUps = followUpChip(plan);
+    if (followUps) row.appendChild(followUps);
     if (plan.total > 0) {
         row.appendChild(el('span', plan.done === plan.total ? 'card-tasks complete' : 'card-tasks', `${plan.done}/${plan.total}`));
     }
+
+    const review = reviewControls(ctx, plan, { compact: true });
+    if (review) row.appendChild(review);
 
     const open = event => {
         event.stopPropagation();

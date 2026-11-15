@@ -26,13 +26,19 @@ export function isReady(plan) {
     return plan.status === 'todo' && plan.depends.every(dep => dep.resource && dep.done);
 }
 
-// The plans grouped by what can happen next, each list in roadmap order.
+// A plan a reviewer sent back: not started again yet, with unticked tasks under ## Follow-ups.
+export function isSentBack(plan) {
+    return plan.status === 'todo' && (plan.followUps?.length ?? 0) > 0;
+}
+
+// The plans grouped by what can happen next, each list in roadmap order. Sent-back plans come first.
 export function nextWork(project) {
     const plans = project.plans;
     return {
+        followUps: plans.filter(isSentBack),
         inProgress: plans.filter(plan => plan.status === 'doing' || plan.status === 'review'),
-        ready: plans.filter(isReady),
-        waiting: plans.filter(plan => plan.status === 'todo' && !isReady(plan)),
+        ready: plans.filter(plan => isReady(plan) && !isSentBack(plan)),
+        waiting: plans.filter(plan => plan.status === 'todo' && !isReady(plan) && !isSentBack(plan)),
         blocked: plans.filter(plan => plan.status === 'blocked'),
         problems: plans.flatMap(plan => plan.depends.filter(dep => dep.problem).map(dep => ({ plan, dep }))),
     };
@@ -81,6 +87,8 @@ export function roadmapBrief(project, { today, roadmapResource }) {
         if (note) lines.push(note, '');
         lines.push(...(plans.length ? plans.map(plan => planLine(plan, extra(plan))) : ['- None']));
     };
+    section('Sent back from review', work.followUps, 'A person reviewed these and asked for more. Do the follow-ups first.',
+        plan => plan.followUps.map(task => `\n  - [ ] ${task}`).join(''));
     section('In progress', work.inProgress, null, plan => (plan.status === 'review' ? ' — in review' : ''));
     section('Ready to start', work.ready, 'Not started, and everything they depend on is done.');
     section('Waiting on dependencies', work.waiting, null, plan => {
@@ -140,10 +148,11 @@ export function agentInstructions(config, roadmapResource) {
         '',
         '### Working from the roadmap',
         '',
+        '- **Follow-ups come first.** A person reviewing on the board can send a plan back: it returns to `status: todo` with unticked tasks under `## Follow-ups`. Do those before new work, then return the plan to review.',
         '- **Pick work** that is ready: `status: todo` with every dependency done, in the earliest unfinished milestone, in your lane if you were given one.',
         '- **Before you start**, set `status: doing` and `owner:` to your name, so people and other agents can see it is taken.',
         '- **As you go**, tick each checkbox (`- [x]`) when it is finished. Work you discover becomes a new plan file in the milestone where it belongs.',
-        '- **When it is all done**, set `status: review` if a person should check it, otherwise `done`. If you cannot continue, set `status: blocked` and add a sentence saying why.',
+        '- **When it is all done**, set `status: review` if a person should check it, otherwise `done`. Leave what the person should check as unticked `- [ ] Check: …` tasks; the board shows them to the reviewer. If you cannot continue, set `status: blocked` and add a sentence saying why.',
         '',
         '### Presenting or building a roadmap',
         '',

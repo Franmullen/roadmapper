@@ -464,6 +464,58 @@ body.read-only .write-only {
     font-weight: var(--cel-font-weight-strong);
 }
 
+/* --- Reviews --- */
+
+.follow-up-chip {
+    display: inline-flex;
+    align-items: center;
+    gap: 3px;
+    white-space: nowrap;
+    color: var(--rm-review);
+}
+
+.review-controls {
+    display: inline-flex;
+    gap: 4px;
+    margin-top: 4px;
+}
+
+.review-controls button {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    padding: 2px 8px;
+    font: inherit;
+    font-size: var(--cel-font-size-small);
+    color: var(--cel-text-primary);
+    background: var(--cel-content-bg);
+    border: 1px solid var(--cel-divider);
+    border-radius: var(--cel-radius-control);
+    cursor: pointer;
+}
+
+.review-controls .review-approve:hover {
+    color: var(--rm-done);
+    border-color: var(--rm-done);
+}
+
+.review-controls .review-send-back:hover {
+    color: var(--rm-review);
+    border-color: var(--rm-review);
+}
+
+.review-controls.compact {
+    margin: 0 0 0 auto;
+}
+
+.review-controls.compact button {
+    padding: 0 4px;
+}
+
+.review-controls .inline-input {
+    min-width: 220px;
+}
+
 /* --- Progress and status bars --- */
 
 .progress {

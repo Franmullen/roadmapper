@@ -74,7 +74,7 @@
 .detail-row {
     display: grid;
     grid-template-columns: minmax(0, 1fr) auto;
-    grid-template-areas: "title status" "meta status" "deps deps";
+    grid-template-areas: "title status" "meta status" "deps deps" "review review";
     align-items: center;
     gap: 2px 12px;
     padding: 6px 8px;
@@ -158,3 +158,21 @@
 .dep-link.dep-ready .bi { color: var(--rm-done); }
 .dep-link.dep-waiting .bi { color: var(--rm-doing); }
 .dep-link.dep-problem { color: var(--rm-blocked); border-color: currentColor; }
+
+.review-panel {
+    grid-area: review;
+    margin-top: 4px;
+    padding: 6px 8px;
+    border-left: 2px solid var(--rm-review);
+}
+
+.review-label {
+    font-size: var(--cel-font-size-small);
+    color: var(--cel-text-secondary);
+}
+
+.review-checks {
+    margin: 2px 0 0;
+    padding-left: 18px;
+    font-size: var(--cel-font-size-small);
+}

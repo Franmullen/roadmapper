@@ -182,7 +182,62 @@ export function summarizeMarkdown(content, fileName) {
         lane: (data.lane ?? '').trim(),
         owner: (data.owner ?? '').trim(),
         dependsOn: parseList(data.depends),
+        ...openTasks(body),
     };
+}
+
+// --- Reviews ---
+//
+// A person reviews a plan in `review` from the board: approve it (done, every task ticked), or send it back
+// with follow-ups, which become unticked tasks under a "## Follow-ups" heading while the plan returns to todo.
+
+const OPEN_TASK = /^\s*[-*+]\s+\[ \]\s*(.*)$/;
+const FOLLOW_UPS_HEADING = /^##\s+follow-ups?\s*$/i;
+const SECTION_HEADING = /^#{1,2}\s/;
+
+// The unticked tasks' text: all of them (what is left to do or check), and those under ## Follow-ups.
+function openTasks(body) {
+    const tasks = [];
+    const followUps = [];
+    let inFollowUps = false;
+    for (const line of body.split(/\r?\n/)) {
+        if (SECTION_HEADING.test(line)) inFollowUps = FOLLOW_UPS_HEADING.test(line.trim());
+        const task = line.match(OPEN_TASK);
+        if (!task) continue;
+        tasks.push(task[1].trim());
+        if (inFollowUps) followUps.push(task[1].trim());
+    }
+    return { openTasks: tasks, followUps };
+}
+
+// Approving a review: the plan is done and its remaining tasks (usually the checks) are ticked.
+export function approveReview(text) {
+    const updated = setFrontMatter(text, { status: 'done' });
+    const { body } = parseFrontMatter(updated);
+    return updated.slice(0, updated.length - body.length) + body.replace(/^(\s*[-*+]\s+)\[ \]/gm, '$1[x]');
+}
+
+// Sending a plan back: each follow-up becomes an unticked task under ## Follow-ups, and the plan is todo again.
+export function addFollowUps(text, items) {
+    const tasks = items.map(item => item.trim()).filter(Boolean).map(item => `- [ ] ${item}`);
+    const source = setFrontMatter(text, { status: 'todo' });
+    if (tasks.length === 0) return source;
+    const eol = source.includes('\r\n') ? '\r\n' : '\n';
+    const lines = source.split(/\r?\n/);
+
+    const heading = lines.findIndex(line => FOLLOW_UPS_HEADING.test(line.trim()));
+    if (heading < 0) {
+        while (lines.length && lines[lines.length - 1].trim() === '') lines.pop();
+        return [...lines, '', '## Follow-ups', '', ...tasks, ''].join(eol);
+    }
+    // After the section's last line with text, before the next heading.
+    let end = lines.findIndex((line, i) => i > heading && SECTION_HEADING.test(line));
+    if (end < 0) end = lines.length;
+    let last = end - 1;
+    while (last > heading && lines[last].trim() === '') last--;
+    if (last === heading) lines.splice(heading + 1, 0, '', ...tasks);
+    else lines.splice(last + 1, 0, ...tasks);
+    return lines.join(eol);
 }
 
 // What a milestone header shows, read from the milestone's README.md.

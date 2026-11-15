@@ -72,3 +72,18 @@ test('upsertSection appends once, then replaces in place', () => {
     assert.equal(second, `# Project\n\nNotes.\n\n${AGENT_SECTION_START}\nv2\n${AGENT_SECTION_END}\n\nAfter.\n`);
     assert.equal(upsertSection('', 'S'), 'S\n');
 });
+
+test('plans sent back from review come first, with their follow-ups', () => {
+    const tree = folder('plans', [folder('01-alpha', [file('api.md'), file('ui.md')])]);
+    const contents = new Map([
+        ['plans/01-alpha/api.md', '---\nstatus: todo\nowner: claude\n---\n# API\n- [x] a\n\n## Follow-ups\n\n- [ ] Rename it\n'],
+        ['plans/01-alpha/ui.md', '---\nstatus: todo\n---\n# UI\n'],
+    ]);
+    const project = buildProject(tree, 'plans', contents, { lanes: [] });
+    const work = nextWork(project);
+    assert.deepEqual(work.followUps.map(p => p.title), ['API']);
+    assert.deepEqual(work.ready.map(p => p.title), ['UI']);
+    const brief = roadmapBrief(project, { today: '2026-11-16', roadmapResource: 'r.roadmap' });
+    assert.match(brief, /## Sent back from review\n\n.*\n\n- API — .*\n  - \[ \] Rename it/);
+    assert.match(agentInstructions({ root: 'plans', lanes: [] }, 'r.roadmap'), /Follow-ups come first/);
+});

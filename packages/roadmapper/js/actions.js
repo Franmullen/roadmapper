@@ -5,7 +5,7 @@
 // except loadProject, whose caller decides what an unreadable folder means.
 
 import {
-    buildProject, dropChanges, milestoneTemplate, nextMilestoneFolder, planTemplate, projectResources,
+    addFollowUps, approveReview, buildProject, dropChanges, milestoneTemplate, nextMilestoneFolder, planTemplate, projectResources,
     setFrontMatter, uniqueFileName,
 } from './model.js';
 import { agentInstructions, briefResource, roadmapBrief, upsertSection } from './agents.js';
@@ -83,6 +83,14 @@ export function createActions(client, { notify }) {
     function updatePlan(resource, updates) {
         return attempt(`Could not update ${baseName(resource)}.`, async () => {
             await call('file.write', resource, setFrontMatter(await readFile(resource), updates));
+        });
+    }
+
+    // Finishes a review: approve it (done, tasks ticked), or send it back with follow-up tasks.
+    function reviewPlan(resource, followUps = null) {
+        return attempt(`Could not update ${baseName(resource)}.`, async () => {
+            const text = await readFile(resource);
+            await call('file.write', resource, followUps ? addFollowUps(text, followUps) : approveReview(text));
         });
     }
 
@@ -179,7 +187,7 @@ export function createActions(client, { notify }) {
     }
 
     return {
-        loadProject, openFile, revealFolder, updatePlan, dropPlan, createPlan, createMilestone,
+        loadProject, openFile, revealFolder, updatePlan, reviewPlan, dropPlan, createPlan, createMilestone,
         createMilestoneReadme, createRoot, writeAgentGuide, writeBrief,
     };
 }

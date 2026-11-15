@@ -151,6 +151,39 @@ export function ownerTag(plan) {
     return tag;
 }
 
+// --- Reviews ---
+
+// What is left to check on a plan in review: its unticked tasks.
+export function reviewChecks(plan) {
+    return plan.openTasks.length ? ['To check:', ...plan.openTasks.map(task => `- ${task}`)].join('\n') : 'Nothing left unticked.';
+}
+
+// Approve or send back a plan in review. Compact shows icons only. Clicks here never open or drag the plan.
+export function reviewControls(ctx, plan, { compact = false } = {}) {
+    if (plan.status !== 'review') return null;
+    const controls = el('span', compact ? 'review-controls compact write-only' : 'review-controls write-only');
+    for (const type of ['click', 'keydown', 'pointerdown']) controls.addEventListener(type, event => event.stopPropagation());
+
+    const label = text => (compact ? [] : [` ${text}`]);
+    const approve = button('review-approve', [icon('check2'), ...label('Approve')], () => ctx.approvePlan(plan.resource),
+        `Approve: mark it done and tick its remaining tasks.\n\n${reviewChecks(plan)}`);
+    const sendBack = button('review-send-back', [icon('arrow-return-left'), ...label('Follow up')], null,
+        'Send it back with follow-ups. They become tasks under "## Follow-ups" and the plan returns to To do, ready for an agent.');
+    sendBack.addEventListener('click', () => inlinePrompt(sendBack, 'Follow-up, then Enter (separate several with ;)',
+        text => ctx.sendBackPlan(plan.resource, text.split(';'))));
+    controls.append(approve, sendBack);
+    return controls;
+}
+
+// A plan sent back from review, waiting for its follow-ups.
+export function followUpChip(plan) {
+    if (plan.status !== 'todo' || !plan.followUps.length) return null;
+    const chip = el('span', 'follow-up-chip');
+    chip.append(icon('arrow-return-left'), ` ${plan.followUps.length} follow-up${plan.followUps.length === 1 ? '' : 's'}`);
+    chip.title = ['Sent back from review:', ...plan.followUps.map(task => `- ${task}`)].join('\n');
+    return chip;
+}
+
 // --- Dependencies ---
 
 const PROBLEMS = {
@@ -206,10 +239,14 @@ export function planCard(ctx, plan, { showLane = true } = {}) {
     if (plan.owner) tags.appendChild(ownerTag(plan));
     const deps = dependencyChip(plan);
     if (deps) tags.appendChild(deps);
+    const followUps = followUpChip(plan);
+    if (followUps) tags.appendChild(followUps);
     if (plan.total > 0) {
         tags.appendChild(el('span', plan.done === plan.total ? 'card-tasks complete' : 'card-tasks', `${plan.done}/${plan.total}`));
     }
     item.appendChild(tags);
+    const review = reviewControls(ctx, plan);
+    if (review) item.appendChild(review);
 
     item.appendChild(el('div', 'card-file', plan.path));
     if (plan.total > 0) {
