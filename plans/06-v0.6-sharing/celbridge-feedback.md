@@ -10,10 +10,12 @@ Report what we learned building Roadmapper: bugs as GitHub issues, feature reque
 
 - [x] Draft: opaque errors for wrong tool arguments (issue)
 - [x] Draft: notes from building a package, with three requests (forum)
-- [ ] Test the HTML5 drag probe with a real mouse, then finish that issue draft
+- [x] Test the HTML5 drag probe with a real mouse, then finish that issue draft
 - [ ] Review the drafts, then post them and link them here
 
 ## Notes
 
 - Celbridge takes no outside pull requests; tested code snippets in reports are welcome.
 - Checked for duplicates on 2026-11-15: none found for these topics.
+- Drag probe, real mouse, Windows: `dragstart` fires, then `dragend` at once with `dropEffect: none`; no `drag`, `dragover` or `drop`. The native drag session is cut off right after it starts.
+- Hold all posting until Fran says so.
