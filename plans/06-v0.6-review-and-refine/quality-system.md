@@ -1,5 +1,5 @@
 ---
-status: review
+status: done
 lane: core
 owner: claude
 ---
@@ -17,4 +17,4 @@ Fast agent work needs checks that don't depend on anyone remembering them. There
 - [x] `scratch/` is ignored, for discussion drafts; the Celbridge feedback drafts moved there
 - [x] Shipped through its own flow: fresh review, then PR and CI
 - [x] Review checks link the files to read; agents are told to link them
-- [ ] Check: read the [ship-plan skill](../../.claude/skills/ship-plan/SKILL.md) and [architecture](../../docs/architecture.md); do they match how you want to work?
+- [x] Check: read the [ship-plan skill](../../.claude/skills/ship-plan/SKILL.md) and [architecture](../../docs/architecture.md); do they match how you want to work?
